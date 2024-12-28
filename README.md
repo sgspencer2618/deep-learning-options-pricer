@@ -24,7 +24,9 @@ RMSE: 14.3713
 R^2: 0.9006
 
 The $AAPL stock price candle chart with overlaid model predictions should look like this:
-![image](https://github.com/user-attachments/assets/1fc37984-7b53-456b-9a85-23279f08f183)
+
+<img src="(https://github.com/user-attachments/assets/1fc37984-7b53-456b-9a85-23279f08f183)" alt="Alt Text" width="300" height="200">
+
 The green upward-pointing arrows on each candle are "Buy" signals, and the red downward-pointing arrows are "Sell" signals as determined by the model's findings with a price change threshold of +/- 1.2%.
 
 
