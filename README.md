@@ -22,10 +22,10 @@ The project was implemented in Google Colab, and the link is available in the 'C
 4. In the toolbar, go to **Runtime > Run all**
 
 The pretrained model has error metrics as follows:
-Mean Absolute Error: 4.4466
-Mean Squared Error: 206.5355
-RMSE: 14.3713
-R^2: 0.9006
+- Mean Absolute Error: 4.4466
+- Mean Squared Error: 206.5355
+- RMSE: 14.3713
+- R^2: 0.9006
 
 The $AAPL stock price candle chart with overlaid model predictions should look like this:
 
