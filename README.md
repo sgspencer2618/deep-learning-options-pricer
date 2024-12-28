@@ -1,3 +1,7 @@
+<a target="_blank" href="https://colab.research.google.com/github/sgspencer2618/xgboost-options-pricing/blob/main/options_pricer.ipynb">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+</a>
+
 # XGBoost Options Pricing Model for $AAPL stock and Generation of Buy/Sell Signals Based on Model Predictions
 
 This project is an implementation of an option pricer using gradient-boosted trees (XGBoost), that predicts american options last prices using historical market options data. It cleans and merges features such as greeks (Delta, Gamma, Vega, Theta, Rho), and moneyness measures, then trains a model to forecast option prices for both calls and puts. The code also demonstrates how to:
