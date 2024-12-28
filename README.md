@@ -7,3 +7,12 @@ This project is an implementation of an option pricer using gradient-boosted tre
 - Generate and overlay Buy/Sell signals on a price chart to visualize model-driven trading decisions.
 
 In future projects, I would like to add functionality for other stocks, as well as provide additional insights to users - potentially implementing a UI and integrating stock price dashboards for real-time functionality and useability.
+
+## How To Use
+
+The project was implemented in Google Colab, and the link is available in the 'Code' section along with the source code of the project. All libraries and dependencies should install when the first cell is run. Data files are contained in this Github repostiory. To see the model's findings as displayed in the Github code, do the following:
+
+1. Click the link to view the program in Google Colab's environment
+2. Download the files titled *"aapl_2016_2020.csv"*, *"aapl_2021_2023.csv"*, *"aapl_stock_prices.csv"*, and *"options_model.json"*. The first 3 files are data files if you would like to retrain the model, and the last (json) file contains the data for the model as trained and displayed in the code in this repo.
+3. 
+4. In the toolbar, go to **Runtime > Run all**
