@@ -25,8 +25,15 @@ R^2: 0.9006
 
 The $AAPL stock price candle chart with overlaid model predictions should look like this:
 
-<img src="(https://github.com/user-attachments/assets/1fc37984-7b53-456b-9a85-23279f08f183)" alt="Alt Text" width="300" height="200">
+<img width="651" alt="Overlaid Candle Chart" src="https://github.com/user-attachments/assets/20e3a587-b9b7-4a10-93c8-f3c04a69c671" />
 
-The green upward-pointing arrows on each candle are "Buy" signals, and the red downward-pointing arrows are "Sell" signals as determined by the model's findings with a price change threshold of +/- 1.2%.
+The green upward-pointing arrows on each candle are "Buy" signals, and the red downward-pointing arrows are "Sell" signals as determined by the model's findings, with a price change threshold of +/- 1.2%.
 
+## Credits
+This project was inspired by the project outlined in: https://www.tidy-finance.org/python/option-pricing-via-machine-learning.html#:~:text=All%20ML%20methods%20seem%20to,in%2Dthe%2Dmoney%20options.
 
+The databases can be found on Kaggle.com at:
+- https://www.kaggle.com/datasets/kylegraupe/aapl-options-data-2016-2020/data (options chains)
+- https://www.kaggle.com/datasets/muhammadbilalhaneef/-apple-stock-prices-from-1981-to-2023 ($AAPL stock price data)
+
+## License
