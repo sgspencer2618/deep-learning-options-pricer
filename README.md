@@ -10,7 +10,7 @@ This project is an implementation of an option pricer using gradient-boosted tre
 - Tune hyperparameters (e.g., max_depth, learning_rate) with Bayesian optimization.
 - Generate and overlay Buy/Sell signals on a price chart to visualize model-driven trading decisions.
 
-In future projects, I would like to add functionality for other stocks, as well as provide additional insights to users - potentially implementing a UI and integrating stock price dashboards for real-time functionality and useability.
+In future versions, I plan to add functionality for other stocks, as well as provide additional insights to users - potentially implementing a UI and integrating stock price dashboards for real-time functionality and useability.
 
 ## How To Use
 
