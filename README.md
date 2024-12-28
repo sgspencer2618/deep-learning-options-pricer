@@ -16,3 +16,15 @@ The project was implemented in Google Colab, and the link is available in the 'C
 2. Download the files titled *"aapl_2016_2020.csv"*, *"aapl_2021_2023.csv"*, *"aapl_stock_prices.csv"*, and *"options_model.json"*. The first 3 files are data files (found at https://www.kaggle.com/datasets/kylegraupe/aapl-options-data-2016-2020/data and https://www.kaggle.com/datasets/muhammadbilalhaneef/-apple-stock-prices-from-1981-to-2023) if you would like to retrain the model, and the last (json) file (zipped in the repository) contains the data for the model as trained and displayed in the code in this repo.
 3. On the left sidebar, upload the files into a folder in Colab's file directory, and name the new folder **"options_data"**
 4. In the toolbar, go to **Runtime > Run all**
+
+The pretrained model has error metrics as follows:
+Mean Absolute Error: 4.4466
+Mean Squared Error: 206.5355
+RMSE: 14.3713
+R^2: 0.9006
+
+The $AAPL stock price candle chart with overlaid model predictions should look like this:
+![image](https://github.com/user-attachments/assets/1fc37984-7b53-456b-9a85-23279f08f183)
+The green upward-pointing arrows on each candle are "Buy" signals, and the red downward-pointing arrows are "Sell" signals as determined by the model's findings with a price change threshold of +/- 1.2%.
+
+
