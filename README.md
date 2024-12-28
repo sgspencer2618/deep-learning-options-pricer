@@ -41,3 +41,4 @@ The databases can be found on Kaggle.com at:
 - https://www.kaggle.com/datasets/muhammadbilalhaneef/-apple-stock-prices-from-1981-to-2023 ($AAPL stock price data)
 
 ## License
+MIT License Copyright (c) 2024 Sean Gywnn Spencer
