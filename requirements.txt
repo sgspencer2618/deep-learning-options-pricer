@@ -1,0 +1,12 @@
+# DATA MANAGEMENT
+pandas>=1.5.0
+
+# MATH
+numpy
+
+# MACHINE LEARNING
+scikit-learn
+xgboost
+
+# OTHER DEPENDENCIES
+python-dotenv
