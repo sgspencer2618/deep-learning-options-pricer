@@ -1,5 +1,8 @@
-# DATA MANAGEMENT
+# DATA
 pandas>=1.5.0
+pandas-market-calendars
+pyarrow
+fastparquet
 
 # MATH
 numpy
@@ -10,3 +13,4 @@ xgboost
 
 # OTHER DEPENDENCIES
 python-dotenv
+boto3
