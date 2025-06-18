@@ -3,6 +3,10 @@ pandas>=1.5.0
 pandas-market-calendars
 pyarrow
 fastparquet
+sqlalchemy
+
+# API
+requests
 
 # MATH
 numpy
@@ -14,3 +18,8 @@ xgboost
 # OTHER DEPENDENCIES
 python-dotenv
 boto3
+
+# SCHEDULING
+APScheduler==3.10.4
+
+-e .
