@@ -30,7 +30,7 @@ def daily_ingestion_job(symbols, days):
     for symbol in symbols:
         try:
             logger.info(f"Processing data for {symbol}")
-            success = upload_options_data_to_s3(symbol, days)
+            success = upload_options_data_to_s3(symbol, 25)
 
             if success:
                 logger.info(f"Successfully ingested data for {symbol}")
@@ -41,7 +41,7 @@ def daily_ingestion_job(symbols, days):
             logger.error(f"Error processing {symbol}: {str(e)}")
 
 class DataIngestionScheduler:
-    def __init__(self, symbols=None, days=1, db_path='scheduler_jobs.sqlite'):
+    def __init__(self, symbols=None, days=os.getenv('TRADING_DAYS', 1), db_path='scheduler_jobs.sqlite'):
         self.symbols = symbols or ['AAPL', 'MSFT', 'GOOGL', 'TSLA']
         self.days = days
         
