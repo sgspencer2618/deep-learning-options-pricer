@@ -1,0 +1,93 @@
+# .github/workflows/options-data-ingestion.yml
+name: Options Data Ingestion
+
+on:
+  schedule:
+    # Run at 9:30 AM UTC every weekday (Monday to Friday)
+    - cron: '30 9 * * 1-5'
+  workflow_dispatch:
+    # Manual trigger with options
+    inputs:
+      symbols:
+        description: 'Stock symbols (comma-separated)'
+        required: true
+        default: 'AAPL,MSFT,GOOGL,TSLA'
+      days:
+        description: 'Number of trading days to fetch'
+        required: true
+        default: '1'
+      run_type:
+        description: 'Run type'
+        required: true
+        default: 'daily'
+        type: choice
+        options:
+          - daily
+          - test
+          - once
+
+jobs:
+  ingest-options-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Create logs directory
+        run: mkdir -p logs
+      
+      - name: Run Data Ingestion
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          AV_API_KEY: ${{ secrets.AV_API_KEY }}
+          LOG_FILE: logs/scheduler.log
+        run: |
+          # Parse comma-separated symbols into array format for the script
+          SYMBOLS_ARG="${{ github.event.inputs.symbols || 'AAPL,MSFT,GOOGL,TSLA' }}"
+          SYMBOLS_FORMATTED=$(echo $SYMBOLS_ARG | sed 's/,/ /g')
+          
+          # Get days parameter
+          DAYS="${{ github.event.inputs.days || '1' }}"
+          
+          # Default to daily run for scheduled events
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            echo "Running scheduled daily job"
+            python dataIngest/scripts/scheduler_service.py --run-once
+          else
+            # For manual runs, check the specified type
+            RUN_TYPE="${{ github.event.inputs.run_type }}"
+            
+            if [ "$RUN_TYPE" == "test" ]; then
+              echo "Running test job"
+              python dataIngest/scripts/scheduler_service.py --symbols $SYMBOLS_FORMATTED --days $DAYS --test
+            elif [ "$RUN_TYPE" == "once" ]; then
+              echo "Running job once"
+              python dataIngest/scripts/scheduler_service.py --run-once
+            else
+              echo "Running daily job"
+              python dataIngest/scripts/scheduler_service.py --symbols $SYMBOLS_FORMATTED --days $DAYS
+            fi
+          fi
+      
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: scheduler-logs
+          path: logs/
+          retention-days: 7
