@@ -45,7 +45,7 @@ def upload_options_data_to_s3(symbol: str, days: int) -> bool:
     uploader = S3Uploader()
     
     # get trading days from today
-    trading_days = get_last_n_trading_days_starting(days, end_date="2025-02-02")
+    trading_days = get_last_n_trading_days_starting(days, end_date="2025-01-26")
 
     if trading_days is None or len(trading_days) == 0:
         logger.info(f"No trading days available for days = {days}.")
@@ -87,6 +87,6 @@ def upload_options_data_to_s3(symbol: str, days: int) -> bool:
 
 if __name__ == "__main__":
     symbol = "AAPL"
-    days = 6
+    days = 5
     success = upload_options_data_to_s3(symbol, days)
     print(f"Upload success code: {success}")

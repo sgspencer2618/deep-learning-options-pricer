@@ -2,11 +2,14 @@ import boto3
 import pandas as pd
 import io
 import os
+import logging
 from typing import Optional
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 class S3Uploader:
     def __init__(self):
@@ -23,6 +26,7 @@ class S3Uploader:
             aws_secret_access_key=self.secret_key,
             region_name=self.region
         )
+        logger.info(f"S3Uploader initialized with bucket: {self.bucket_name}")
 
     def create_bucket(self, bucket_name: str = None) -> bool:
         """
@@ -118,7 +122,9 @@ class S3Uploader:
             bool: True if upload successful, False otherwise
         """
         try:
-            # Convert DataFrame to Parquet bytes
+            logger.info(f"Uploading DataFrame with {len(df)} rows to S3 key: {s3_key}")
+            
+            # Convert DataFrame to Parquet format in memory
             parquet_buffer = io.BytesIO()
             df.to_parquet(parquet_buffer, index=False)
             parquet_bytes = parquet_buffer.getvalue()
@@ -133,9 +139,8 @@ class S3Uploader:
             
             print(f"Successfully uploaded DataFrame to s3://{self.bucket_name}/{s3_key}")
             return True
-            
         except Exception as e:
-            print(f"Error uploading DataFrame to S3: {str(e)}")
+            logger.error(f"Error uploading DataFrame to S3: {str(e)}")
             return False
     
     def upload_local_file(self, local_file_path: str, s3_key: str) -> bool:
@@ -171,10 +176,20 @@ class S3Uploader:
         """
         
         try:
-            response = self.s3_client.get_object(Bucket=self.bucket_name, Key=s3_key)
-            parquet_data = response['Body'].read()
-            df = pd.read_parquet(io.BytesIO(parquet_data))
+            logger.info(f"Reading Parquet file from S3: {s3_key}")
+            
+            # Get the object from S3
+            response = self.s3_client.get_object(
+                Bucket=self.bucket_name,
+                Key=s3_key
+            )
+            
+            # Read Parquet from the response body
+            parquet_buffer = io.BytesIO(response['Body'].read())
+            df = pd.read_parquet(parquet_buffer)
+            
+            logger.info(f"Successfully read DataFrame with {len(df)} rows from S3")
             return df
         except Exception as e:
-            print(f"Error reading Parquet file from S3: {str(e)}")
+            logger.error(f"Error reading Parquet file from S3: {str(e)}")
             return None
