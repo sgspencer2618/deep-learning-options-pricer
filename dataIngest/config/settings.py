@@ -19,4 +19,8 @@ class SchedulerConfig:
     
     # Logging
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-    LOG_FILE = os.getenv("LOG_FILE", "scheduler.log")
+    LOG_FILE = os.getenv("LOG_FILE", "logs/scheduler.log")
+    
+    # AWS/S3 Configuration
+    BUCKET_NAME = os.getenv("S3_BUCKET", "chicken-apple-basket-raw")
+    AV_API_KEY = os.getenv("AV_API_KEY")

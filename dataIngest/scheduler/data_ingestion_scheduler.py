@@ -30,9 +30,13 @@ def daily_ingestion_job(symbols, days):
     for symbol in symbols:
         try:
             logger.info(f"Processing data for {symbol}")
-            success = upload_options_data_to_s3(symbol, 25)
+            logger.info(f"Test Run Success")
+            success = None
+            # success = upload_options_data_to_s3(symbol, 25)
 
-            if success:
+            if success is None:
+                logger.warning(f"No success, testing.")
+            elif success:
                 logger.info(f"Successfully ingested data for {symbol}")
             else:
                 logger.error(f"Failed to ingest data for {symbol}")
