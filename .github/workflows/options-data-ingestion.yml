@@ -33,10 +33,10 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
           cache: 'pip'
@@ -55,40 +55,43 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           S3_BUCKET: ${{ secrets.S3_BUCKET }}
           AV_API_KEY: ${{ secrets.AV_API_KEY }}
-          SYMBOLS: "AAPL"
-          TRADING_DAYS: 30
           LOG_FILE: logs/scheduler.log
         run: |
-          # Parse comma-separated symbols into array format for the script
-          SYMBOLS_ARG="${{ github.event.inputs.symbols || 'AAPL,MSFT,GOOGL,TSLA' }}"
-          SYMBOLS_FORMATTED=$(echo $SYMBOLS_ARG | sed 's/,/ /g')
-          
-          # Get days parameter
-          DAYS="${{ github.event.inputs.days || '1' }}"
-          
-          # Default to daily run for scheduled events
-          if [ "${{ github.event_name }}" == "schedule" ]; then
-            echo "Running scheduled daily job"
-            python dataIngest/scripts/scheduler_service.py --run-once
-          else
-            # For manual runs, check the specified type
+          # Parse symbols for script arguments
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            # For manual trigger, use the provided inputs
+            SYMBOLS="${{ github.event.inputs.symbols }}"
+            DAYS="${{ github.event.inputs.days }}"
             RUN_TYPE="${{ github.event.inputs.run_type }}"
-            
-            if [ "$RUN_TYPE" == "test" ]; then
-              echo "Running test job"
-              python dataIngest/scripts/scheduler_service.py --symbols $SYMBOLS_FORMATTED --days $DAYS --test
-            elif [ "$RUN_TYPE" == "once" ]; then
-              echo "Running job once"
-              python dataIngest/scripts/scheduler_service.py --run-once
-            else
-              echo "Running daily job"
-              python dataIngest/scripts/scheduler_service.py --symbols $SYMBOLS_FORMATTED --days $DAYS
-            fi
+          else
+            # For scheduled events, use default values
+            SYMBOLS="AAPL"
+            DAYS="30"
+            RUN_TYPE="once"
+          fi
+          
+          # Format symbols for command line
+          SYMBOLS_FORMATTED=$(echo $SYMBOLS | sed 's/,/ /g')
+          
+          echo "Using symbols: $SYMBOLS"
+          echo "Using days: $DAYS"
+          echo "Run type: $RUN_TYPE"
+          
+          # Run the appropriate command based on run type
+          if [ "$RUN_TYPE" == "test" ]; then
+            echo "Running test job"
+            python dataIngest/scripts/scheduler_service.py --symbols $SYMBOLS_FORMATTED --days $DAYS --test
+          elif [ "$RUN_TYPE" == "once" ]; then
+            echo "Running job once"
+            python dataIngest/scripts/scheduler_service.py --symbols $SYMBOLS_FORMATTED --days $DAYS --run-once
+          else
+            echo "Running daily job"
+            python dataIngest/scripts/scheduler_service.py --symbols $SYMBOLS_FORMATTED --days $DAYS
           fi
       
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # Updated to v4
         with:
           name: scheduler-logs
           path: logs/
