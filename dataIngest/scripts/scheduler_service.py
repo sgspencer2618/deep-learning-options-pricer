@@ -2,20 +2,38 @@ import argparse
 import sys
 import os
 import logging
+from datetime import datetime
+import time
 
-# add parent directory to path
+# Add parent directory to path
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(parent_dir)
 
 from scheduler.data_ingestion_scheduler import DataIngestionScheduler
 from config.settings import SchedulerConfig
 
-# Configure logger
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.path.join(parent_dir, 'logs', 'service.log')),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
+def log_system_info():
+    """Log system information."""
+    logger.info(f"Python version: {sys.version}")
+    logger.info(f"Current time: {datetime.now()}")
+    logger.info(f"Working directory: {os.getcwd()}")
+    logger.info(f"Script path: {os.path.abspath(__file__)}")
 
 def main():
+    # Log system information
+    log_system_info()
+    
     parser = argparse.ArgumentParser(description='Run the data ingestion scheduler')
     parser.add_argument('--symbols', nargs='+', help='Stock symbols to process', 
                        default=SchedulerConfig.SYMBOLS)
@@ -30,33 +48,49 @@ def main():
     
     args = parser.parse_args()
 
-    # Initialize scheduler
+    # Clean up symbols (remove any extra quotes)
+    if args.symbols and isinstance(args.symbols, list):
+        args.symbols = [symbol.strip('"\'') for symbol in args.symbols]
+    
+    logger.info(f"Starting scheduler with settings:")
+    logger.info(f"Symbols: {args.symbols}")
+    logger.info(f"Days: {args.days}")
+    logger.info(f"Schedule time: {args.hour:02d}:{args.minute:02d}")
+    logger.info(f"Test mode: {args.test}")
+    logger.info(f"Run once: {args.run_once}")
+
+    # Initialize scheduler with memory job store
     scheduler = DataIngestionScheduler(symbols=args.symbols, days=args.days)
 
     if args.run_once:
         # Run the job once and exit (no scheduler needed)
         logger.info("Running data ingestion job once...")
-        scheduler.run_once()  # Use the new method
+        scheduler.run_once()
         logger.info("Job completed.")
         return
 
-    # Add jobs BEFORE starting the scheduler
+    # Add jobs
     if args.test:
         # Add test job that runs every minute
         scheduler.add_test_job()
         logger.info("Added test job (runs every minute)")
+        
+        # Debug output
+        jobs = scheduler.scheduler.get_jobs()
+        for job in jobs:
+            logger.info(f"Debug - Job in scheduler: {job.id}, trigger: {job.trigger}")
     else:
         # Add daily job
         scheduler.add_daily_job(hour=args.hour, minute=args.minute)
         logger.info(f"Added daily job at {args.hour:02d}:{args.minute:02d}")
     
-    # List scheduled jobs BEFORE starting
-    scheduler.list_jobs()
-    
-    # Start the scheduler (this will block until stopped)
+    # Start the scheduler
     try:
         logger.info("Starting scheduler...")
+        
+        # Start the scheduler directly (no paused=True)
         scheduler.start()
+        
     except KeyboardInterrupt:
         logger.info("Scheduler stopped by user (Ctrl+C)")
     except Exception as e:
