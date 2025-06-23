@@ -6,7 +6,7 @@ fastparquet==2023.10.1
 sqlalchemy==2.0.23
 
 # API
-requests==2.31.0
+requests==2.32.4
 
 # MATH
 # numpy is installed as a dependency of pandas
