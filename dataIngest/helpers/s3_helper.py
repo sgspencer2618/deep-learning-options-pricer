@@ -17,7 +17,7 @@ class S3Uploader:
         self.access_key = os.getenv('ACCESS_KEY')
         self.secret_key = os.getenv('SECRET_KEY')
         self.region = os.getenv('AWS_REGION')
-        self.bucket_name = os.getenv('S3_BUCKET')
+        self.bucket_name = os.getenv('BUCKET_NAME')
         
         # Initialize S3 client
         self.s3_client = boto3.client(
@@ -28,9 +28,9 @@ class S3Uploader:
         )
     
         # Safe logging of bucket name
-        if self.s3_bucket:
+        if self.bucket_name:
             # Show first 3 chars and last 3 chars to avoid full exposure
-            masked_name = f"{self.s3_bucket[:3]}...{self.s3_bucket[-3:]}" if len(self.s3_bucket) > 6 else "***"
+            masked_name = f"{self.bucket_name[:3]}...{self.bucket_name[-3:]}" if len(self.bucket_name) > 6 else "***"
             logger.info(f"S3Uploader initialized with bucket: {masked_name}")
         else:
             logger.error("S3_BUCKET environment variable not set!")
