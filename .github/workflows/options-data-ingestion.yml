@@ -55,6 +55,8 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           S3_BUCKET: ${{ secrets.S3_BUCKET }}
           AV_API_KEY: ${{ secrets.AV_API_KEY }}
+          SYMBOLS: "AAPL"
+          TRADING_DAYS: 30
           LOG_FILE: logs/scheduler.log
         run: |
           # Parse comma-separated symbols into array format for the script
