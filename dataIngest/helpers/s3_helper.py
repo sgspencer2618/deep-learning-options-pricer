@@ -26,7 +26,17 @@ class S3Uploader:
             aws_secret_access_key=self.secret_key,
             region_name=self.region
         )
-        logger.info(f"S3Uploader initialized with bucket: {self.bucket_name}")
+        
+        # Initialize S3 bucket from environment variable
+        self.s3_bucket = os.environ.get('S3_BUCKET')
+    
+        # Safe logging of bucket name
+        if self.s3_bucket:
+            # Show first 3 chars and last 3 chars to avoid full exposure
+            masked_name = f"{self.s3_bucket[:3]}...{self.s3_bucket[-3:]}" if len(self.s3_bucket) > 6 else "***"
+            logger.info(f"S3Uploader initialized with bucket: {masked_name}")
+        else:
+            logger.error("S3_BUCKET environment variable not set!")
 
     def create_bucket(self, bucket_name: str = None) -> bool:
         """
