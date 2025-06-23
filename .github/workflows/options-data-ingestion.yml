@@ -11,7 +11,7 @@ on:
       symbols:
         description: 'Stock symbols (comma-separated)'
         required: true
-        default: 'AAPL,MSFT,GOOGL,TSLA'
+        default: 'AAPL'
       days:
         description: 'Number of trading days to fetch'
         required: true

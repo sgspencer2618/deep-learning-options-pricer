@@ -30,10 +30,13 @@ class S3Uploader:
         # Safe logging of bucket name
         if self.bucket_name:
             # Show first 3 chars and last 3 chars to avoid full exposure
-            masked_name = f"{self.bucket_name[:3]}...{self.bucket_name[-3:]}" if len(self.bucket_name) > 6 else "***"
+            if len(self.bucket_name) > 6:
+                masked_name = f"{self.bucket_name[:3]}...{self.bucket_name[-3:]}"
+            else:
+                masked_name = "short-name"  # Don't use "***" as this confuses the logs
             logger.info(f"S3Uploader initialized with bucket: {masked_name}")
         else:
-            logger.error("S3_BUCKET environment variable not set!")
+            logger.error("BUCKET_NAME environment variable not set!")  # Changed error message
 
     def create_bucket(self, bucket_name: str = None) -> bool:
         """
@@ -184,6 +187,9 @@ class S3Uploader:
         
         try:
             logger.info(f"Reading Parquet file from S3: {s3_key}")
+
+            # Debug the actual bucket name being used
+            logger.info(f"Using bucket name: '{self.bucket_name}' for upload")
             
             # Get the object from S3
             response = self.s3_client.get_object(
