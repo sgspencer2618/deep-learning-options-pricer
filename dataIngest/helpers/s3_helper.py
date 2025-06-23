@@ -187,9 +187,6 @@ class S3Uploader:
         
         try:
             logger.info(f"Reading Parquet file from S3: {s3_key}")
-
-            # Debug the actual bucket name being used
-            logger.info(f"Using bucket name: '{self.bucket_name}' for upload")
             
             # Get the object from S3
             response = self.s3_client.get_object(
