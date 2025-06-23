@@ -8,9 +8,16 @@ from scripts.fetch_historical import fetch_historical_options_data, get_last_n_t
 import pandas as pd
 from helpers.s3_helper import S3Uploader
 
-# Configure logger
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.getenv('LOG_FILE', 'scheduler.log')),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 def parse_options_data(symbol: str, day: str):
     """
@@ -22,7 +29,7 @@ def parse_options_data(symbol: str, day: str):
     success = fetch_historical_options_data(symbol, day)
     if not success:
         print(f"Failed to fetch data for {symbol} on {day}")
-        return
+        return None
     
     options_df = pd.read_csv(f'data/{symbol}_{day}_options.csv')
     return options_df
@@ -41,7 +48,7 @@ def upload_options_data_to_s3(symbol: str, days: int) -> bool:
     trading_days = get_last_n_trading_days_starting(days, end_date="2025-02-02")
 
     if trading_days is None or len(trading_days) == 0:
-        logger.info("No trading days available for days = {days}.")
+        logger.info(f"No trading days available for days = {days}.")
         return False
 
     for date in trading_days:
@@ -52,10 +59,13 @@ def upload_options_data_to_s3(symbol: str, days: int) -> bool:
 
             # Fetch and parse options data for the given date
             df = parse_options_data(symbol, date)
+            if df is None or df.empty:
+                logger.warning(f"No data found for {symbol} on {date}. Skipping upload.")
+                continue
             logger.debug(f"DataFrame for {symbol} on {date}:\n{df.head()}")
             success = uploader.upload_dataframe_as_parquet(df, s3_key)
         except Exception as e:
-            logger.error("Error processing {symbol} on {date}: {str(e)}")
+            logger.error(f"Error processing {symbol} on {date}: {str(e)}")
             return False
         
     df_test = uploader.read_parquet_from_s3(f"options-data/{symbol}/{symbol}_2025-06-09_options.parquet")
