@@ -1,11 +1,16 @@
 import sys
 import os
+import logging
 # Add parent directory to path to access scripts folder
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts.fetch_historical import fetch_historical_options_data, get_last_n_trading_days, get_last_n_trading_days_starting
 import pandas as pd
 from helpers.s3_helper import S3Uploader
+
+# Configure logger
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 def parse_options_data(symbol: str, day: str):
     """
@@ -33,31 +38,30 @@ def upload_options_data_to_s3(symbol: str, days: int) -> bool:
     uploader = S3Uploader()
     
     # get trading days from today
-    # trading_days = get_last_n_trading_days(days)
-
-    # get trading days from a specific date
     trading_days = get_last_n_trading_days_starting(days, end_date="2025-02-02")
 
     if trading_days is None or len(trading_days) == 0:
-        print(f"No trading days available for days = {days}.")
+        logger.info("No trading days available for days = {days}.")
         return False
 
     for date in trading_days:
         try:
             # Create organized S3 key structure
+            logger.debug(f"Processing {symbol} for date {date}")
             s3_key = f"options-data/{symbol}/{symbol}_{date}_options.parquet"
 
             # Fetch and parse options data for the given date
             df = parse_options_data(symbol, date)
+            logger.debug(f"DataFrame for {symbol} on {date}:\n{df.head()}")
             success = uploader.upload_dataframe_as_parquet(df, s3_key)
         except Exception as e:
-            print(f"Error processing {symbol} on {date}: {str(e)}")
+            logger.error("Error processing {symbol} on {date}: {str(e)}")
             return False
         
     df_test = uploader.read_parquet_from_s3(f"options-data/{symbol}/{symbol}_2025-06-09_options.parquet")
-    print(f"Test read from S3 successful: {df_test is not None}")
+    logger.info(f"Test read from S3 successful: {df_test is not None}")
     if df_test is None:
-        print("Failed to read test data from S3.")
+        logger.error("Failed to read test data from S3.")
         return False
 
     df_test.to_csv('filename.csv')
