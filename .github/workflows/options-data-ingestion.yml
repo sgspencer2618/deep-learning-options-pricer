@@ -97,3 +97,36 @@ jobs:
           name: scheduler-logs
           path: logs/
           retention-days: 7
+      
+      - name: Report Ingestion Statistics
+        if: always()
+        run: |
+          echo "Generating ingestion report..."
+          python -c "
+          from dataIngest.helpers.s3_helper import S3Uploader
+          import os
+          import sys
+          
+          symbols = '${SYMBOLS}'.split(',')
+          uploader = S3Uploader()
+          
+          print('Data Ingestion Report')
+          print('=====================')
+          
+          for symbol in symbols:
+              try:
+                  metadata_key = f'options-data/{symbol}/{symbol}_ingestion_metadata.json'
+                  metadata = uploader.read_json_from_s3(metadata_key)
+                  
+                  print(f'\\nSymbol: {symbol}')
+                  print(f'Earliest date: {metadata[\"earliest_date\"]}')
+                  print(f'Latest date: {metadata[\"latest_date\"]}')
+                  print(f'Total dates: {metadata[\"total_dates\"]}')
+                  
+                  if metadata[\"ingestion_history\"]:
+                      latest = metadata[\"ingestion_history\"][-1]
+                      print(f'Latest ingestion: {latest[\"timestamp\"]}')
+                      print(f'Dates ingested: {len(latest[\"dates_ingested\"])}')
+              except Exception as e:
+                  print(f'Error reading metadata for {symbol}: {str(e)}')
+          "
