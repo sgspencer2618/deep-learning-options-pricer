@@ -4,7 +4,7 @@ name: Options Data Ingestion
 on:
   schedule:
     # Run at 9:30 AM UTC every weekday (Monday to Friday)
-    - cron: '* * * * 1-5'
+    - cron: '*/5 9-16 * * 1-5'
   workflow_dispatch:
     # Manual trigger with options
     inputs:
@@ -97,6 +97,7 @@ jobs:
           name: scheduler-logs
           path: logs/
           retention-days: 7
+
       
       - name: Report Ingestion Statistics
         if: always()
