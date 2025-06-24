@@ -52,10 +52,10 @@ def upload_options_data_to_s3(symbol: str, days: int) -> bool:
     try:
         # Check if metadata exists and get latest date
         metadata = uploader.read_json_from_s3(metadata_key)
-        if metadata and metadata.get("latest_date"):
+        if metadata and metadata.get("earliest_date"):
             # Use the latest date from metadata
-            end_date = metadata["latest_date"]
-            logger.info(f"Using latest date from metadata: {end_date}")
+            end_date = metadata["earliest_date"]
+            logger.info(f"Using earliest date from metadata: {end_date}")
     except Exception as e:
         logger.info(f"No existing metadata found, using default date: {end_date}")
     
