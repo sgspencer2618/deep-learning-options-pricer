@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 from dotenv import load_dotenv
 import requests
@@ -31,6 +32,31 @@ def fetch_historical_options_data(symbol: str, day: str):
         print(f"Error: {r.status_code}")
         return False
     
+
+def fetch_historical_OHLC_data(symbol: str):
+    """
+    Fetch historical OHLC (Open, High, Low, Close) data for a given stock symbol and day using the Alpha Vantage API."""
+    import requests
+
+    url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&outputsize=full&apikey={AV_API_KEY}&datatype=json'
+    r = requests.get(url)
+    data = r.json()
+
+    # Check if the request was successful
+    if r.status_code == 200:
+        # Create the data directory if it doesn't exist
+        os.makedirs('data', exist_ok=True)
+        
+        # Save the response content to a CSV file
+        filename = f'data/{symbol}_OHLC.csv'
+        with open(filename, 'w') as file:
+            file.write(r.text)
+        print(f"Data saved to {filename}")
+        return True
+    else:
+        print(f"Error: {r.status_code}")
+        return False
+        
     
 def get_last_n_trading_days(n: int):
     """
@@ -57,7 +83,7 @@ def get_last_n_trading_days(n: int):
     return dates
 
 
-def get_last_n_trading_days_starting(n: int, end_date: str):
+def get_last_n_trading_days_starting(n: int, end_date=datetime.today().strftime("%Y-%m-%d")):
     """
     Fetch all trading days in the last n calendar days of historical options data for a given stock symbol.
     Args:

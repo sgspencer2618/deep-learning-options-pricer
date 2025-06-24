@@ -203,3 +203,45 @@ class S3Uploader:
         except Exception as e:
             logger.error(f"Error reading Parquet file from S3: {str(e)}")
             return None
+        
+    def upload_json_to_s3(self, data, s3_key):
+        """Upload JSON data to S3."""
+        try:
+            import json
+            
+            # Convert to JSON string
+            json_data = json.dumps(data, indent=2)
+            
+            # Upload to S3
+            self.s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=s3_key,
+                Body=json_data,
+                ContentType='application/json'
+            )
+            
+            logger.info(f"Successfully uploaded JSON to {s3_key}")
+            return True
+        except Exception as e:
+            logger.error(f"Error uploading JSON to S3: {str(e)}")
+            return False
+
+    def read_json_from_s3(self, s3_key):
+        """Read JSON data from S3."""
+        try:
+            import json
+            
+            # Get object from S3
+            response = self.s3_client.get_object(
+                Bucket=self.bucket_name,
+                Key=s3_key
+            )
+            
+            # Read and parse JSON
+            json_content = response['Body'].read().decode('utf-8')
+            data = json.loads(json_content)
+            
+            return data
+        except Exception as e:
+            logger.error(f"Error reading JSON from S3: {str(e)}")
+            raise
