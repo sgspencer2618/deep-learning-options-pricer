@@ -38,9 +38,9 @@ def fetch_historical_OHLC_data(symbol: str):
     Fetch historical OHLC (Open, High, Low, Close) data for a given stock symbol and day using the Alpha Vantage API."""
     import requests
 
-    url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&outputsize=full&apikey={AV_API_KEY}&datatype=json'
+    url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&outputsize=full&apikey={AV_API_KEY}&datatype=csv'
     r = requests.get(url)
-    data = r.json()
+    # data = r.json()
 
     # Check if the request was successful
     if r.status_code == 200:
