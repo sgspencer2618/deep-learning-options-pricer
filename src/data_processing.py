@@ -5,7 +5,7 @@ import numpy as np
 from dotenv import load_dotenv
 import logging
 from dataIngest.helpers.s3_helper import S3Uploader
-from utils import path_builder
+from src.utils import path_builder
 
 # Load environment variables
 load_dotenv()
