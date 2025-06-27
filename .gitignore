@@ -10,5 +10,26 @@ venv.bak/
 # Data
 data/
 
-# cache
+# Python cache
 __pycache__/
+*.pyc
+
+# Model artifacts
+*.json
+*.pkl
+*.h5
+*.zip
+
+# Data files
+*.parquet
+*.csv
+
+# Logs
+*.log
+logs/
+
+# Notebooks data outputs
+notebooks/
+notebooks/*.parquet
+notebooks/*.csv
+notebooks/options_model.json.zip
