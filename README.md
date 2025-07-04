@@ -96,11 +96,24 @@ We used Optuna for hyperparameter tuning. Feature was scaling handled using nump
 - MedAE
 - R^2
 ## Limitations & Future Work
-...
+Based on observations and evaluation metrics:
+
+### Limitations
+- The model tends to **consistently underestimate** ultra-expensive illiquid contracts due to training data imbalance
+- Only considers vanilla options (no spreads or multileg support)
+- Would benefit from more exogenous data (macro, rates, VIX, etc)
+
+- 
+### Next Steps
+- ensemble model exploration
+- more features
+- production-grade deployment
+- Opportunities for transfer learning, real-time inference, and online retraining.
+
 ## How to Run
 ...
 ## References
 [ref1]:https://arxiv.org/abs/2409.03204
 [ref2]:https://arxiv.org/abs/2409.06724
-## Contact / Contribution / License
-...
+## License
+MIT License 2025
