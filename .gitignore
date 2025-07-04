@@ -19,14 +19,18 @@ __pycache__/
 *.pkl
 *.h5
 *.zip
+*.pt
 
 # Data files
 *.parquet
 *.csv
+*.npy
+params.txt
 
 # Logs
 *.log
 logs/
+dataIngest\logs
 
 # Notebooks data outputs
 notebooks/
