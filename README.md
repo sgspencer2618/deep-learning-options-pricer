@@ -1,4 +1,4 @@
-# Deep Learning for US Options Pricing
+# Deep Learning for US Options Pricing ($AAPL Equity Options)
 
 ## Table of Contents
 
