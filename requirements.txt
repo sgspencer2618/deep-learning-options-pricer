@@ -5,6 +5,10 @@ pyarrow==14.0.1
 fastparquet==2023.10.1
 sqlalchemy==2.0.23
 
+# VISUALIZATION
+matplotlib
+seaborn
+
 # API
 requests==2.32.4
 
@@ -12,8 +16,10 @@ requests==2.32.4
 # numpy is installed as a dependency of pandas
 
 # MACHINE LEARNING
-# scikit-learn
-# xgboost
+scikit-learn
+xgboost
+optuna==4.4.0
+torch
 
 # OTHER DEPENDENCIES
 python-dotenv==1.0.0

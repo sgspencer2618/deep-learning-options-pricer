@@ -1,44 +1,106 @@
-<a target="_blank" href="https://colab.research.google.com/github/sgspencer2618/xgboost-options-pricing/blob/main/options_pricer.ipynb">
-  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
-</a>
+# Deep Learning for US Options Pricing
 
-# XGBoost Options Pricing Model for $AAPL stock and Generation of Buy/Sell Signals Based on Model Predictions
+## Table of Contents
 
-This project is an implementation of an option pricer using gradient-boosted trees (XGBoost), that predicts american options last prices using historical market options data. It cleans and merges features such as greeks (Delta, Gamma, Vega, Theta, Rho), and moneyness measures, then trains a model to forecast option prices for both calls and puts. The code also demonstrates how to:
+- [Project Description](#project-description)
+- [Motivation & Background](#motivation--background)
+- [Data Description](#data-description)
+- [Repository Structure](#repository-structure)
+- [Modeling Approach](#modeling-approach)
+- [Evaluation & Results](#evaluation--results)
+- [Limitations & Future Work](#limitations--future-work)
+- [How to Run](#how-to-run)
+- [References](#references)
+- [Contact / Contribution / License](#contact--contribution--license)
 
-- Perform time-series–aware splitting to avoid data leakage.
-- Tune hyperparameters (e.g., max_depth, learning_rate) with Bayesian optimization.
-- Generate and overlay Buy/Sell signals on a price chart to visualize model-driven trading decisions.
+## Project Description
 
-In future versions, I plan to add functionality for other stocks, as well as provide additional insights to users - potentially implementing a UI and integrating stock price dashboards for real-time functionality and useability.
+Inspired by techniques from recent academic literature and proprietary research, This repository explores, implements, and evaluates different Machine Learning models to emperically price American equity Options for the $AAPL stock. Comparisons are made between 3 different Machine Learning models, namely:
 
-## How To Use
+1. XGBoost (Gradient-Boosted Trees) with Bayesian Hyperparameter Tuning
+2. Gated Recurrent Unit (GRU)
+3. Gated Recurrent Unit with Weighted Loss Function
 
-The project was implemented in Google Colab, and the link is available in the 'Code' section along with the source code of the project. All libraries and dependencies should install when the first cell is run. Data files are contained in this Github repostiory. To see the model's findings as displayed in the Github code, do the following:
+## Motivation & Background
+Market prices for options often deviate from theoretical values (determined by Black-Scholes, etc.) due to liquidity and market regime shifts.
 
-1. Click the link to view the program in Google Colab's environment
-2. Download the files titled *"aapl_2016_2020.csv"*, *"aapl_2021_2023.csv"*, *"aapl_stock_prices.csv"*, and *"options_model.json"*. The first 3 files are data files (found at https://www.kaggle.com/datasets/kylegraupe/aapl-options-data-2016-2020/data and https://www.kaggle.com/datasets/muhammadbilalhaneef/-apple-stock-prices-from-1981-to-2023) if you would like to retrain the model, and the last (json) file (zipped in the repository) contains the data for the model as trained and displayed in the code in this repo.
-3. On the left sidebar, upload the files into a folder in Colab's file directory, and name the new folder **"options_data"**
-4. In the toolbar, go to **Runtime > Run all**
+We know that Machine Learning models can fit complex, nonlinear relationships between variables, and exploit additional features that are not necessarily captured by other methods of estimation.
 
-The pretrained model has error metrics as follows:
-- Mean Absolute Error: 4.4466
-- Mean Squared Error: 206.5355
-- RMSE: 14.3713
-- R^2: 0.9006
+This repo is based on recent research (See [[1]][ref1], [[2]][ref2]) and looks to bridge the gap between quant finance and modern ML.
 
-The $AAPL stock price candle chart with overlaid model predictions should look like this:
+## Data Description
+For this project, I sourced recent historical options data from [Alpha Vantage](https://www.alphavantage.co/)'s Options Data API, with columns for expiration, strike, greeks, as well as integrating daily OHLC to try to capture market regime behaviour.
 
-<img width="651" alt="Overlaid Candle Chart" src="https://github.com/user-attachments/assets/20e3a587-b9b7-4a10-93c8-f3c04a69c671" />
+For this, I implemented a modular automated data ingestion pipeline using AWS S3 and Github Actions for scalibility and continuous integration during development.
 
-The green upward-pointing arrows on each candle are "Buy" signals, and the red downward-pointing arrows are "Sell" signals as determined by the model's findings, with a price change threshold of +/- 1.2%.
+In training, a time-based train/val/test split was used to avoid leakage; never shuffling entries across time in training, testing, or validation data.
 
-## Credits
-This project was inspired by the project outlined in: https://www.tidy-finance.org/python/option-pricing-via-machine-learning.html#:~:text=All%20ML%20methods%20seem%20to,in%2Dthe%2Dmoney%20options.
+### Feature Engineering
+Here is the breakdown of features used in model training:
+#### Features Used
+1. 'strike'
+2. 'option_type_encoded'
+3. 'date'
+4. 'implied_volatility'
+5. 'delta'
+6. 'gamma'
+7. 'theta'
+8. 'vega'
+9. 'rho'
+10. 'log_moneyness'
+11. 'time_to_maturity'
+12. 'log_moneyness_norm'
+13. 'intrinsic_value_norm'
 
-The databases can be found on Kaggle.com at:
-- https://www.kaggle.com/datasets/kylegraupe/aapl-options-data-2016-2020/data (options chains)
-- https://www.kaggle.com/datasets/muhammadbilalhaneef/-apple-stock-prices-from-1981-to-2023 ($AAPL stock price data)
+#### Greek product Features
+I also feature-engineered several 'compound' features, calculated as simple products of greeks, namely:
+1. 'delta_x_iv',
+2. 'vega_x_ttm',
+3. 'gamma_x_logm',
+4. 'theta_x_intrinsic',
 
-## License
-MIT License Copyright (c) 2024
+## Repository Structure
+```
+├───.github             # GitHub Actions/workflows for CI/CD automation
+│   └───workflows       # CI/CD pipeline YAMLs
+├───/dataIngest         # Automated data ingestion (config, helpers, schedulers, scripts)
+│   ├───/config         # Ingestion configuration (API keys, settings)
+│   ├───/helpers          # Utility functions for metadata, S3, etc.
+│   ├───/logs           # Logs for ingestion processes
+│   ├───/scheduler      # Scheduler scripts for timed data pulls
+│   ├───/scripts        # Standalone scripts for fetching data
+│   └───/src            # Core ingestion pipeline modules
+├───/notebooks          # Jupyter notebooks for exploration and prototyping
+├───/scripts            # Utility or run scripts (real-time, batch jobs, etc.)
+└───/src                # Main source code for modeling and features
+    ├───/features       # Feature engineering, indicator, and preprocessing code
+    ├───/model          # XGBoost Model training, config, and evaluation
+    └───/neural         # Neural network (GRU, attention) modules and experiments
+```
+
+## Modeling Approach
+### Baseline
+We used XGBoost regression for speed and feature importance as a baseline to compare the other models' performance.
+
+### Advanced
+Gated Recurrent Unit (GRU) neural networks with attention for sequence modeling, implementing with and without weighted loss functions to target fat tails and rare, high-value contracts.
+
+### Tuning and Feature Scaling
+We used Optuna for hyperparameter tuning. Feature was scaling handled using numpy and pandas.
+
+## Evaluation & Results
+
+### Metrics
+- RMSE
+- MAE
+- MedAE
+- R^2
+## Limitations & Future Work
+...
+## How to Run
+...
+## References
+[ref1]:https://arxiv.org/abs/2409.03204
+[ref2]:https://arxiv.org/abs/2409.06724
+## Contact / Contribution / License
+...

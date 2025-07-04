@@ -1,6 +1,8 @@
 from src.utils import path_builder
 
 FEATURE_DATA_PATH = path_builder('data', 'features_data.parquet')
+SCALED_FEATURE_DATA_PATH = path_builder('data', 'scaled_features_data.parquet')
+SCALER_DATA_PATH = path_builder('data', 'scaler.pkl')
 
 # removed: 'option_volume', 'last'
 #                  'expiration', 
@@ -83,6 +85,27 @@ FEATURE_COLS = [
 
 TARGET_COL = "mark"
 
+SCALING_COLS = [
+                 'strike', 
+                 'option_type_encoded', 
+                 'date', 
+                 'implied_volatility',
+                 'mark', 
+                 'delta', 
+                 'gamma', 
+                 'theta', 
+                 'vega', 
+                 'rho', 
+                 'log_moneyness',
+                 'time_to_maturity', 
+                 'log_moneyness_norm', 
+                 'intrinsic_value_norm',
+                 'delta_x_iv',
+                 'vega_x_ttm',
+                 'gamma_x_logm',
+                 'theta_x_intrinsic',
+]
+
 HYPERPARAM_SPACE = {
     'max_depth': (7, 12),
     'min_child_weight': (1, 10),
@@ -94,3 +117,8 @@ HYPERPARAM_SPACE = {
 }
 
 MODEL_SAVE_PATH = path_builder('src\model', 'xgb_option_pricer_v2.json')
+GRU_MODEL_SAVE_PATH = path_builder('src\\neural', 'gru_option_pricer_GRU_Huber_weighted_loss.pt')
+
+GROUP_KEY_COL = ["contractID"]
+
+WINDOW_SIZE = 10
