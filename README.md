@@ -1,4 +1,4 @@
-# Deep Learning for US Options Pricing
+# Deep Learning for US Options Pricing ($AAPL Equity Options)
 
 ## Table of Contents
 
@@ -71,31 +71,31 @@ I also feature-engineered several 'compound' features, calculated as simple prod
 ## Repository Structure
 ```
 ├───.github             # GitHub Actions/workflows for CI/CD automation
-│   └───workflows       # CI/CD pipeline YAMLs
+│   └───workflows           # CI/CD pipeline YAMLs
 ├───/dataIngest         # Automated data ingestion (config, helpers, schedulers, scripts)
-│   ├───/config         # Ingestion configuration (API keys, settings)
+│   ├───/config             # Ingestion configuration (API keys, settings)
 │   ├───/helpers          # Utility functions for metadata, S3, etc.
-│   ├───/logs           # Logs for ingestion processes
-│   ├───/scheduler      # Scheduler scripts for timed data pulls
-│   ├───/scripts        # Standalone scripts for fetching data
-│   └───/src            # Core ingestion pipeline modules
+│   ├───/logs               # Logs for ingestion processes
+│   ├───/scheduler          # Scheduler scripts for timed data pulls
+│   ├───/scripts            # Standalone scripts for fetching data
+│   └───/src                # Core ingestion pipeline modules
 ├───/notebooks          # Jupyter notebooks for exploration and prototyping
 ├───/scripts            # Utility or run scripts (real-time, batch jobs, etc.)
 └───/src                # Main source code for modeling and features
-    ├───/features       # Feature engineering, indicator, and preprocessing code
-    ├───/model          # XGBoost Model training, config, and evaluation
-    └───/neural         # Neural network (GRU, attention) modules and experiments
+    ├───/features           # Feature engineering, indicator, and preprocessing code
+    ├───/model              # XGBoost Model training, config, and evaluation
+    └───/neural             # Neural network (GRU, attention) modules and experiments
 ```
 
 ## Modeling Approach
 ### Baseline
-We used XGBoost regression for speed and feature importance as a baseline to compare the other models' performance.
+XGBoost regression was used for speed and feature importance as a baseline to compare the other models' performance.
 
 ### Advanced
 Gated Recurrent Unit (GRU) neural networks with attention for sequence modeling, implementing with and without weighted loss functions to target fat tails and rare, high-value contracts.
 
 ### Tuning and Feature Scaling
-We used Optuna for hyperparameter tuning. Feature was scaling handled using numpy and pandas.
+Optuna was used for hyperparameter tuning. Feature was scaling handled using numpy and pandas.
 
 ## Evaluation & Results
 
@@ -166,5 +166,5 @@ See Papers:
 
 [ref1]:https://arxiv.org/abs/2409.03204
 [ref2]:https://arxiv.org/abs/2409.06724
-## Contact / Contribution / License
-...
+## License
+MIT License 2025
