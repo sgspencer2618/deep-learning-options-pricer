@@ -22,6 +22,12 @@ def load_data():
     df = pd.read_parquet(FEATURE_DATA_PATH)
     X = df[FEATURE_COLS]
     y = df[TARGET_COL]
+
+    unseen_split_idx = int(len(X) * 0.8)
+    X, y = X.iloc[:unseen_split_idx], y.iloc[:unseen_split_idx]
+
+    logger.info(f"Training on {len(X)} samples, validating on {len(y)} samples")
+
     return X, y
 
 def objective(trial):
@@ -43,6 +49,8 @@ def objective(trial):
     }
 
     X, y = load_data()
+    # Split to keep some data unseen for validation later
+
     # Time-wise split
     split_idx = int(len(X) * 0.8)
     X_train, X_val = X.iloc[:split_idx], X.iloc[split_idx:]
