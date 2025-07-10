@@ -3,7 +3,7 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 import xgboost as xgb
-from sklearn.metrics import root_mean_squared_error, confusion_matrix
+from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error, confusion_matrix, median_absolute_error, explained_variance_score
 from config import FEATURE_DATA_PATH, FEATURE_COLS, TARGET_COL, HYPERPARAM_SPACE, MODEL_SAVE_PATH
 
 def plot_feature_importance(model, feature_names, max_features=20):
@@ -21,6 +21,55 @@ def plot_feature_importance(model, feature_names, max_features=20):
     plt.bar(range(len(feature_names)), importances[indices], align='center')
     plt.xticks(range(len(feature_names)), [feature_names[i] for i in indices], rotation=45)
     plt.title("Feature Importances (XGBoost)")
+    plt.tight_layout()
+    plt.show()
+
+def plot_predictions_vs_true(y_true, y_pred, max_points=100000):
+    """
+    Plot predicted values against true values with a diagonal reference line.
+    
+    Args:
+        y_true: Array of true values
+        y_pred: Array of predicted values
+        max_points: Maximum number of points to plot to avoid overcrowding
+    """
+    # Ensure y_true and y_pred have the same length
+    if len(y_true) != len(y_pred):
+        print(f"Warning: Length mismatch - y_true: {len(y_true)}, y_pred: {len(y_pred)}")
+        # Use the smaller size
+        min_len = min(len(y_true), len(y_pred))
+        if isinstance(y_true, pd.Series):
+            y_true = y_true.iloc[:min_len]
+        else:
+            y_true = y_true[:min_len]
+        y_pred = y_pred[:min_len]
+        print(f"Using first {min_len} elements from both arrays")
+    
+    # Sample points if there are too many
+    if len(y_true) > max_points:
+        # Use a fixed random seed for reproducibility
+        np.random.seed(42)
+        idx = np.random.choice(len(y_true), max_points, replace=False)
+        y_true_sample = y_true.iloc[idx] if isinstance(y_true, pd.Series) else y_true[idx]
+        y_pred_sample = y_pred[idx]
+    else:
+        y_true_sample = y_true
+        y_pred_sample = y_pred
+    
+    # Create the scatter plot
+    plt.figure(figsize=(8, 8))
+    plt.scatter(y_true_sample, y_pred_sample, alpha=0.5)
+    
+    # Add diagonal line (perfect predictions)
+    min_val = min(y_true_sample.min(), y_pred_sample.min())
+    max_val = max(y_true_sample.max(), y_pred_sample.max())
+    plt.plot([min_val, max_val], [min_val, max_val], 'r--')
+    
+    plt.xlabel('True Values')
+    plt.ylabel('Predicted Values')
+    plt.title('XGBoost Predicted vs True Values')
+    plt.axis('equal')
+    plt.grid(True)
     plt.tight_layout()
     plt.show()
 
@@ -59,8 +108,14 @@ def print_metrics(y_true, y_pred):
     """Print RMSE and MAE."""
     rmse = root_mean_squared_error(y_true, y_pred)
     mae = np.mean(np.abs(y_true - y_pred))
+    medae = median_absolute_error(y_true, y_pred)
+    r2 = r2_score(y_true, y_pred)
+    ev = explained_variance_score(y_true, y_pred)
     print(f"RMSE: {rmse:.5f}")
     print(f"MAE: {mae:.5f}")
+    print(f"MedAE: {medae:.5f}")
+    print(f"R2: {r2:.5f}")
+    print(f"Explained Variance: {ev:.5f}")
 
 # Example usage after training/evaluation in model_train.py:
 if __name__ == "__main__":
@@ -70,15 +125,22 @@ if __name__ == "__main__":
     
     # Load your validation data:
     df = pd.read_parquet(FEATURE_DATA_PATH)
-    split_idx = 1600856
-    X_val = df[FEATURE_COLS].iloc[split_idx:]
-    y_val = df[TARGET_COL].iloc[split_idx:]
-    preds = model.predict(X_val)
     
-    # For demo purposes, replace these with your actual variables:
-    model, X_val, y_val, preds, FEATURE_COLS
-
+    # Make sure you're working with the same set of data
+    unseen_split_idx = int(len(df) * 0.8)
+    X_test = df[FEATURE_COLS].iloc[unseen_split_idx:] 
+    y_test = df[TARGET_COL].iloc[unseen_split_idx:]
+    
+    print(f"X_test shape: {X_test.shape}")
+    print(f"y_test shape: {y_test.shape}")
+    
+    # Make predictions
+    preds = model.predict(X_test)
+    print(f"Predictions shape: {preds.shape}")
+    
+    # Now that we've ensured y_test and preds have the same length, we can plot
     plot_feature_importance(model, FEATURE_COLS)
-    plot_residuals(y_val, preds)
-    regression_confusion_matrix(y_val, preds, bins=5)
-    print_metrics(y_val, preds)
+    plot_predictions_vs_true(y_test, preds)
+    plot_residuals(y_test, preds)
+    regression_confusion_matrix(y_test, preds, bins=5)
+    print_metrics(y_test, preds)

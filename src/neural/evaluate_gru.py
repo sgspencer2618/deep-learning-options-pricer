@@ -2,14 +2,16 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
-from src.model.config import GRU_MODEL_SAVE_PATH, SCALER_DATA_PATH
-from src.features.build_features import X_test_path, y_test_path
+from src.model.config import GRU_MODEL_SAVE_PATH, SCALER_DATA_PATH, FEATURE_COLS
+from src.features.build_features import X_test_path, y_test_path, y_train_path
 
 from src.neural.attentive_gru import AttentiveGRU
 from src.neural.dataset import OptionSequenceDataset
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, median_absolute_error, explained_variance_score, root_mean_squared_error
+
+import pandas as pd
 
 def evaluate_model(model, data_loader, scaler_y=None, device="cpu"):
     model.eval()
@@ -93,7 +95,6 @@ def plot_qq(residuals, title="QQ Plot of Residuals"):
     plt.show()
 
 
-
 if __name__ == "__main__":
     import pickle
     import torch
@@ -102,6 +103,7 @@ if __name__ == "__main__":
     # -------- Load data --------
     X_test = np.load(X_test_path)
     y_test = np.load(y_test_path)
+    y_train = np.load(y_train_path)
 
     # load the scaler for y
     with open(SCALER_DATA_PATH, "rb") as f:
@@ -126,7 +128,61 @@ if __name__ == "__main__":
                                     scaler_y=scaler_y, 
                                     device="cuda")
     metrics = regression_metrics(y_true, y_pred)
-    plot_predictions(y_true, y_pred, title="GRU Test: True vs Predicted")
-    plot_residuals(y_true, y_pred, title="GRU Test: Residuals")
-    plot_histograms(y_true, y_pred, title="GRU Test: Value and Error Distribution")
-    plot_qq(y_pred - y_true, title="GRU Test: QQ Plot of Residuals")
+
+    print("Scaler mean:", scaler_y.mean_[0])
+    print("Scaler std:", scaler_y.scale_[0])
+    print("y_train mean:", y_train.mean())
+    print("y_train std:", y_train.std())
+
+    sample = y_train[0]
+    scaled = scaler_y.transform([[sample]])[0,0]
+    inverted = scaler_y.inverse_transform([[scaled]])[0,0]
+    print(f"Original: {sample}, Scaled: {scaled}, Inverted: {inverted}")
+
+
+    # Your feature names (ordered as in your data!)
+    feature_names = FEATURE_COLS
+
+    # If X_test is 3D [N, window_size, num_features], just take last row for each window:
+    if len(X_test.shape) == 3:
+        # For sequence models: take only the last time step for each sample
+        X_flat = X_test[:, -1, :]
+    else:
+        X_flat = X_test
+
+    # Create the DataFrame
+    df_results = pd.DataFrame(X_flat, columns=feature_names)
+
+    # Add y_test, y_pred, and delta (prediction error)
+    df_results['y_true'] = y_true
+    df_results['y_pred'] = y_pred
+    df_results['abs_diff'] = df_results['y_pred'] - df_results['y_true']
+
+    rmse = np.sqrt(root_mean_squared_error(df_results['y_true'], df_results['y_pred']))
+    mae = mean_absolute_error(df_results['y_true'], df_results['y_pred'])
+    medae = median_absolute_error(df_results['y_true'], df_results['y_pred'])
+    r2 = r2_score(df_results['y_true'], df_results['y_pred'])
+
+    print(f"RMSE: {rmse:.5f}")
+    print(f"MAE: {mae:.5f}")
+    print(f"MedAE: {medae:.5f}")
+    print(f"R2: {r2:.5f}")
+
+    df_results['abs_diff'] = df_results['abs_diff'].abs()
+    print("Number of samples in results DataFrame:", len(df_results))
+    condition = df_results['y_true'] < 50
+    df_results.drop(df_results[condition].index, inplace=True)
+    df_results['pct_error'] = (df_results['y_pred'] - df_results['y_true']) / df_results['y_true'] * 100
+
+    print("Number of samples after dropping y_true < 50:", len(df_results))
+    #df_results.sort_values(by='abs_diff', ascending=True, inplace=True)
+
+
+    # See the first 10 rows
+    print(df_results.head(10))
+
+
+        # plot_predictions(y_true, y_pred, title="GRU Test: True vs Predicted")
+        # plot_residuals(y_true, y_pred, title="GRU Test: Residuals")
+        # plot_histograms(y_true, y_pred, title="GRU Test: Value and Error Distribution")
+        # plot_qq(y_pred - y_true, title="GRU Test: QQ Plot of Residuals")

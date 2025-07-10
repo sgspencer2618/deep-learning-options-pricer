@@ -116,8 +116,8 @@ HYPERPARAM_SPACE = {
     'n_estimators': (500, 1500)
 }
 
-MODEL_SAVE_PATH = path_builder('src\model', 'xgb_option_pricer_v2.json')
-GRU_MODEL_SAVE_PATH = path_builder('src\\neural', 'gru_option_pricer_GRU_Huber_weighted_loss.pt')
+MODEL_SAVE_PATH = path_builder('src\model', 'xgb_option_pricer_v3.json')
+GRU_MODEL_SAVE_PATH = path_builder('src\\neural', 'gru_option_pricer_GRU_Huber.pt')
 
 GROUP_KEY_COL = ["contractID"]
 
