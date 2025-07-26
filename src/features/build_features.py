@@ -5,7 +5,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import logging
 from src.utils import path_builder
 from src.features.indicators import add_stock_indicators
-from src.model.config import FEATURE_COLS, TARGET_COL, GROUP_KEY_COL, WINDOW_SIZE, SCALING_COLS, SCALED_FEATURE_DATA_PATH, SCALER_DATA_PATH
+from src.models.config import FEATURE_COLS, TARGET_COL, GROUP_KEY_COL, WINDOW_SIZE, SCALING_COLS, SCALED_FEATURE_DATA_PATH, SCALER_DATA_PATH, X_TRAIN_PATH, Y_TRAIN_PATH, X_VAL_PATH, Y_VAL_PATH, X_TEST_PATH, Y_TEST_PATH, FEATURE_DATA_PATH
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
@@ -16,14 +16,6 @@ ROLLING_VOL_WINDOW = 5
 MA_SHORT = 10
 MA_LONG = 50
 RSI_WINDOW = 14
-
-features_data_path = path_builder("data", "features_data.parquet")
-X_train_path = path_builder("src\\neural", "X_train.npy")
-y_train_path = path_builder("src\\neural", "y_train.npy")
-X_val_path = path_builder("src\\neural", "X_val.npy")
-y_val_path = path_builder("src\\neural", "y_val.npy")
-X_test_path = path_builder("src\\neural", "X_test.npy")
-y_test_path = path_builder("src\\neural", "y_test.npy")
 
 def add_option_features(df):
     """
@@ -145,9 +137,9 @@ def create_feature_dataset(options_data, stock_data):
     Returns:
         pd.DataFrame: Complete feature dataset
     """
-    if os.path.exists(features_data_path):
-        logger.info(f"Feature dataset already exists at {features_data_path}. Loading existing data.")
-        final_dataset = pd.read_parquet(features_data_path)
+    if os.path.exists(FEATURE_DATA_PATH):
+        logger.info(f"Feature dataset already exists at {FEATURE_DATA_PATH}. Loading existing data.")
+        final_dataset = pd.read_parquet(FEATURE_DATA_PATH)
         print(final_dataset.info())
         return final_dataset
     
@@ -175,9 +167,9 @@ def create_feature_dataset(options_data, stock_data):
     final_dataset = final_dataset[FEATURE_COLS + [TARGET_COL]]
     # final_dataset.drop('symbol', axis=1, inplace=True)
 
-    final_dataset.to_parquet(features_data_path, index=False)
-    logger.info(f"Feature dataset saved to {features_data_path}")
-    
+    final_dataset.to_parquet(FEATURE_DATA_PATH, index=False)
+    logger.info(f"Feature dataset saved to {FEATURE_DATA_PATH}")
+
     return final_dataset
 
 
@@ -424,12 +416,12 @@ def create_time_window_dataset(
         group_key_cols, date_col, min_window_size
     )
 
-    np.save(X_train_path, X_train)
-    np.save(y_train_path, y_train)
-    np.save(X_val_path, X_val)
-    np.save(y_val_path, y_val)
-    np.save(X_test_path, X_test)
-    np.save(y_test_path, y_test)
+    np.save(X_TRAIN_PATH, X_train)
+    np.save(Y_TRAIN_PATH, y_train)
+    np.save(X_VAL_PATH, X_val)
+    np.save(Y_VAL_PATH, y_val)
+    np.save(X_TEST_PATH, X_test)
+    np.save(Y_TEST_PATH, y_test)
     
     return X_train, y_train, X_val, y_val, X_test, y_test
 
@@ -513,7 +505,7 @@ def standardize_and_scale_features(df, feature_cols=SCALING_COLS, exclude_cols=N
     return df, metadata
 
 def generate_gru_window_datasets():
-    from src.data_processing import process_options_data
+    from features.data_processing import process_options_data
     
     # Get clean data
     merged_data_clean, stock_df = process_options_data()
@@ -547,7 +539,7 @@ def generate_gru_window_datasets():
 
 if __name__ == "__main__":
     # This section would only run when this file is executed directly
-    from src.data_processing import process_options_data
+    from features.data_processing import process_options_data
     from sklearn.preprocessing import StandardScaler
     import pickle
     

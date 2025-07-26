@@ -2,12 +2,11 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
-from src.model.config import GRU_MODEL_SAVE_PATH, SCALER_DATA_PATH, FEATURE_COLS, FEATURE_DATA_PATH, TARGET_COL
-from src.features.build_features import X_test_path, y_test_path, y_train_path, X_train_path
+from src.models.config import GRU_MODEL_SAVE_PATH, SCALER_DATA_PATH, FEATURE_COLS, FEATURE_DATA_PATH, TARGET_COL, X_TRAIN_PATH, Y_TRAIN_PATH, X_VAL_PATH, Y_VAL_PATH, X_TEST_PATH, Y_TEST_PATH
 from src.utils import path_builder
 
-from src.neural.attentive_gru import AttentiveGRU
-from src.neural.dataset import OptionSequenceDataset
+from src.models.attentive_gru import AttentiveGRU
+from datasets.dataset import OptionSequenceDataset
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, median_absolute_error, explained_variance_score, root_mean_squared_error
@@ -106,9 +105,9 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader
 
     # -------- Load data --------
-    X_test = np.load(X_test_path)
-    y_test = np.load(y_test_path)
-    y_train = np.load(y_train_path)
+    X_test = np.load(X_TEST_PATH)
+    y_test = np.load(Y_TEST_PATH)
+    y_train = np.load(Y_TRAIN_PATH)
 
     # load the scaler for y
     with open(SCALER_DATA_PATH, "rb") as f:

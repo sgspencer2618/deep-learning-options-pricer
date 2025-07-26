@@ -4,11 +4,11 @@ import torch.nn as nn
 import os
 import numpy as np
 import logging
-from src.model.config import GRU_MODEL_SAVE_PATH
+from src.models.config import GRU_MODEL_SAVE_PATH
 from src.features.build_features import generate_gru_window_datasets
-from src.features.build_features import X_train_path, X_val_path, X_test_path, y_train_path, y_val_path, y_test_path
-from src.neural.attentive_gru import AttentiveGRU
-from src.neural.dataset import OptionSequenceDataset
+from src.models.config import X_TRAIN_PATH, Y_TRAIN_PATH, X_VAL_PATH, Y_VAL_PATH, X_TEST_PATH, Y_TEST_PATH
+from src.models.attentive_gru import AttentiveGRU
+from datasets.dataset import OptionSequenceDataset
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
@@ -69,16 +69,16 @@ def train_gru(
     return model
 
 def main():
-    if not os.path.exists(X_train_path):
+    if not os.path.exists(X_TRAIN_PATH):
         X_train, y_train, X_val, y_val, X_test, y_test = generate_gru_window_datasets()
     else:
         logger.info("Loading pre-generated GRU datasets from disk.")
-        X_train = np.load(X_train_path)
-        y_train = np.load(y_train_path)
-        X_val = np.load(X_val_path)
-        y_val = np.load(y_val_path)
-        X_test = np.load(X_test_path)
-        y_test = np.load(y_test_path)
+        X_train = np.load(X_TRAIN_PATH)
+        y_train = np.load(Y_TRAIN_PATH)
+        X_val = np.load(X_VAL_PATH)
+        y_val = np.load(Y_VAL_PATH)
+        X_test = np.load(X_TEST_PATH)
+        y_test = np.load(Y_TEST_PATH)
 
     print(f"CUDA available: {torch.cuda.is_available()}")
     print(f"CUDA version: {torch.version.cuda}")

@@ -118,9 +118,16 @@ HYPERPARAM_SPACE = {
     'n_estimators': (500, 1500)
 }
 
-MODEL_SAVE_PATH = path_builder('src\model', 'xgb_option_pricer_v4_test.json')
-GRU_MODEL_SAVE_PATH = path_builder('src\\neural', 'gru_option_pricer_GRU_2.pt')
+MODEL_SAVE_PATH = path_builder('src\model_files', 'xgb_option_pricer_v4_test.json')
+GRU_MODEL_SAVE_PATH = path_builder('src\model_files', 'gru_option_pricer_GRU_2.pt')
 
 GROUP_KEY_COL = ["contractID"]
 
 WINDOW_SIZE = 10
+
+X_TRAIN_PATH = path_builder("data", "X_train.npy")
+Y_TRAIN_PATH = path_builder("data", "y_train.npy")
+X_VAL_PATH = path_builder("data", "X_val.npy")
+Y_VAL_PATH = path_builder("data", "y_val.npy")
+X_TEST_PATH = path_builder("data", "X_test.npy")
+Y_TEST_PATH = path_builder("data", "y_test.npy")

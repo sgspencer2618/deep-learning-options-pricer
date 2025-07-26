@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error, confusion_matrix, median_absolute_error, explained_variance_score
-from config import FEATURE_DATA_PATH, FEATURE_COLS, TARGET_COL, HYPERPARAM_SPACE, MODEL_SAVE_PATH
+from src.models.config import FEATURE_DATA_PATH, FEATURE_COLS, TARGET_COL, HYPERPARAM_SPACE, MODEL_SAVE_PATH
 
 def plot_feature_importance(model, feature_names, max_features=20):
     """Plot XGBoost's built-in and custom bar feature importance."""
