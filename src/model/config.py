@@ -36,7 +36,8 @@ FEATURE_COLS = [
                  'strike', 
                  'option_type_encoded', 
                  'date', 
-                 'implied_volatility', 
+                 'implied_volatility',
+                 'iv_change', 
                  'delta', 
                  'gamma', 
                  'theta', 
@@ -47,7 +48,7 @@ FEATURE_COLS = [
                 #  'is_itm', 
                  'time_to_maturity', 
                  'log_moneyness_norm', 
-                 'intrinsic_value_norm',
+                 # 'intrinsic_value_norm',
                  'delta_x_iv',
                  'vega_x_ttm',
                  'gamma_x_logm',
@@ -90,6 +91,7 @@ SCALING_COLS = [
                  'option_type_encoded', 
                  'date', 
                  'implied_volatility',
+                 'iv_change',
                  'mark', 
                  'delta', 
                  'gamma', 
@@ -116,8 +118,8 @@ HYPERPARAM_SPACE = {
     'n_estimators': (500, 1500)
 }
 
-MODEL_SAVE_PATH = path_builder('src\model', 'xgb_option_pricer_v3.json')
-GRU_MODEL_SAVE_PATH = path_builder('src\\neural', 'gru_option_pricer_GRU_Huber.pt')
+MODEL_SAVE_PATH = path_builder('src\model', 'xgb_option_pricer_v4_test.json')
+GRU_MODEL_SAVE_PATH = path_builder('src\\neural', 'gru_option_pricer_GRU_2.pt')
 
 GROUP_KEY_COL = ["contractID"]
 

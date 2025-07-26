@@ -117,30 +117,79 @@ def print_metrics(y_true, y_pred):
     print(f"R2: {r2:.5f}")
     print(f"Explained Variance: {ev:.5f}")
 
+def get_test_data():
+    """
+    Get test data using the same time-based split as GRU.
+    
+    Returns:
+        tuple: (X_test, y_test) DataFrames
+    """
+    print(f"Loading test data from {FEATURE_DATA_PATH}")
+    df = pd.read_parquet(FEATURE_DATA_PATH)
+    
+    # Use same time-based split as GRU (70/15/15)
+    unique_dates = df['date'].sort_values().unique()
+    n_dates = len(unique_dates)
+    
+    # Calculate split indices (same as GRU)
+    train_idx = int(n_dates * 0.7)   # 70% for training
+    val_idx = int(n_dates * 0.85)    # 85% cumulative (next 15% for validation)
+    
+    # Test dates are the last 15%
+    test_dates = unique_dates[val_idx:]
+    
+    print(f"Test dates: {test_dates[0]} to {test_dates[-1]} ({len(test_dates)} dates)")
+    
+    # Filter data by test dates
+    test_data = df[df['date'].isin(test_dates)]
+    
+    X_test = test_data[FEATURE_COLS]
+    y_test = test_data[TARGET_COL]
+    
+    print(f"Test data shape: {X_test.shape}")
+    print(f"Test target range (before filtering): {y_test.min():.2f} to {y_test.max():.2f}")
+    
+    return X_test, y_test
+
 # Example usage after training/evaluation in model_train.py:
 if __name__ == "__main__":
-    # Load your trained model, data, and feature list here:
+    # Load your trained model
     model = xgb.XGBRegressor()
     model.load_model(MODEL_SAVE_PATH)
     
-    # Load your validation data:
-    df = pd.read_parquet(FEATURE_DATA_PATH)
+    # Get test data using time-based split (same as GRU)
+    X_test, y_test = get_test_data()
     
-    # Make sure you're working with the same set of data
-    unseen_split_idx = int(len(df) * 0.8)
-    X_test = df[FEATURE_COLS].iloc[unseen_split_idx:] 
-    y_test = df[TARGET_COL].iloc[unseen_split_idx:]
+    print(f"XGBoost test data shape: {X_test.shape}")
+    print(f"XGBoost test target shape: {y_test.shape}")
     
-    print(f"X_test shape: {X_test.shape}")
-    print(f"y_test shape: {y_test.shape}")
+    # Apply same filtering as GRU (remove options with price < 50)
+    print(f"Number of samples before filtering: {len(y_test)}")
+    mask = y_test >= 50
+    X_test_filtered = X_test[mask]
+    y_test_filtered = y_test[mask]
     
-    # Make predictions
-    preds = model.predict(X_test)
+    print(f"Number of samples after filtering y_test >= 50: {len(y_test_filtered)}")
+    print(f"XGBoost test target range (after filtering): {y_test_filtered.min():.2f} to {y_test_filtered.max():.2f}")
+    
+    # Make predictions on filtered data
+    preds = model.predict(X_test_filtered)
     print(f"Predictions shape: {preds.shape}")
+    print(f"Predictions range: {preds.min():.2f} to {preds.max():.2f}")
     
-    # Now that we've ensured y_test and preds have the same length, we can plot
+    # Generate evaluation plots and metrics
     plot_feature_importance(model, FEATURE_COLS)
-    plot_predictions_vs_true(y_test, preds)
-    plot_residuals(y_test, preds)
-    regression_confusion_matrix(y_test, preds, bins=5)
-    print_metrics(y_test, preds)
+    plot_predictions_vs_true(y_test_filtered, preds)
+    plot_residuals(y_test_filtered, preds)
+    regression_confusion_matrix(y_test_filtered, preds, bins=5)
+    print_metrics(y_test_filtered, preds)
+    
+    # Summary comparison output
+    print("\n" + "="*50)
+    print("SUMMARY:")
+    print(f"XGBoost test samples: {len(y_test_filtered)}")
+    print(f"XGBoost target range: {y_test_filtered.min():.2f} to {y_test_filtered.max():.2f}")
+    print("="*50)
+
+    df = pd.DataFrame(X_test_filtered, columns=FEATURE_COLS)
+    df.to_csv("xgboost_test_data.csv", index=False)

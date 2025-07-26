@@ -35,33 +35,39 @@ def add_option_features(df):
     Returns:
         pd.DataFrame: DataFrame with added features
     """
-    # Create an explicit copy to avoid the SettingWithCopyWarning
     df = df.copy()
-    
-    # Calculating log moneyness
-    df.loc[:, 'log_moneyness'] = np.log(df['close'] / df['strike'])
-    
-    # Encoding the option type
-    df.loc[:, 'type'] = df['type'].map({'call': 1, 'put': 0})
-    
-    # Adding column for intrinsic value
-    df.loc[:, 'intrinsic_value'] = np.where(
-        (df['type'] == 1),
-        np.maximum(0, df['close'] - df['strike']),
-        np.maximum(0, df['strike'] - df['close'])
+    # Shift implied volatility by one day within each contract
+    df['implied_volatility'] = df.groupby('contractID')['implied_volatility'].shift(1)
+
+    # Add IV shift
+    df['iv_change'] = df.groupby('contractID')['implied_volatility'].diff()
+
+    # Shift close and greeks by one day within each contract
+    df['close_prev'] = df.groupby('contractID')['close'].shift(1)
+    for greek in ['delta', 'gamma', 'theta', 'vega', 'rho']:
+        df[greek] = df.groupby('contractID')[greek].shift(1)
+
+    # Calculate log moneyness using previous day's close
+    df['log_moneyness'] = np.log(df['close_prev'] / df['strike'])
+
+    # Encode option type
+    df['type'] = df['type'].map({'call': 1, 'put': 0})
+
+    # Intrinsic value and ITM flag using previous close
+    df['intrinsic_value'] = np.where(
+        df['type'] == 1,
+        np.maximum(0, df['close_prev'] - df['strike']),
+        np.maximum(0, df['strike'] - df['close_prev'])
     )
-    
-    # Binary flag for in-the-money options
-    df.loc[:, 'is_itm'] = np.where(
-        df['intrinsic_value'] > 0,
-        True,
-        False
-    )
-    
-    # Time to maturity in years
-    df.loc[:, 'time_to_maturity'] = (df['expiration'] - df['date']).dt.days / 365
+
+    df['is_itm'] = df['intrinsic_value'] > 0
+
+    # Time to maturity (safe)
+    df['time_to_maturity'] = (df['expiration'] - df['date']).dt.days / 365
     df = df[df['time_to_maturity'] > 0]
-    
+
+    # Drop rows with NaNs (first row of each contract)
+    df = df.dropna(subset=['close_prev', 'log_moneyness', 'delta', 'gamma', 'theta', 'vega', 'rho', 'iv_change'])
     return df
 
 
@@ -161,15 +167,15 @@ def create_feature_dataset(options_data, stock_data):
     # Merge options and stock features
     final_dataset = merge_option_and_stock_features(options_with_greek_features, stock_with_features)
 
-    # last-minute cleaning
+    # Ensure numeric types for date and expiration
     final_dataset['date'] = pd.to_numeric(final_dataset['date'])
     final_dataset['expiration'] = pd.to_numeric(final_dataset['expiration'])
     # final_dataset.drop('contractID', axis=1, inplace=True)
     # final_dataset['symbol'] = final_dataset['symbol'].astype('category')
-    final_dataset.drop('symbol', axis=1, inplace=True)
+    final_dataset = final_dataset[FEATURE_COLS + [TARGET_COL]]
+    # final_dataset.drop('symbol', axis=1, inplace=True)
 
     final_dataset.to_parquet(features_data_path, index=False)
-    print(final_dataset.info())
     logger.info(f"Feature dataset saved to {features_data_path}")
     
     return final_dataset
@@ -492,7 +498,14 @@ def standardize_and_scale_features(df, feature_cols=SCALING_COLS, exclude_cols=N
     
     with open(scaler_path, 'wb') as f:
         pickle.dump(scaler, f)
-    logger.info(f"Scaler saved to {scaler_path}")
+    logger.info(f"Both X and y scalers saved to {scaler_path}")
+    
+    # Save the X scaler to a separate pickle file
+    scaler_x_path = path_builder("data", "scaler_X.pkl")
+    
+    with open(scaler_x_path, 'wb') as f:
+        pickle.dump(scaler, f)
+    logger.info(f"X scaler saved to {scaler_x_path}")
     
     logger.info(f"Standardization complete. Data shape: {df.shape}")
     df.to_parquet(SCALED_FEATURE_DATA_PATH, index=False)
@@ -535,6 +548,8 @@ def generate_gru_window_datasets():
 if __name__ == "__main__":
     # This section would only run when this file is executed directly
     from src.data_processing import process_options_data
+    from sklearn.preprocessing import StandardScaler
+    import pickle
     
     # Get clean data
     merged_data_clean, stock_df = process_options_data()
@@ -548,6 +563,18 @@ if __name__ == "__main__":
     # scale_method='z-score'
     # )
     print(feature_dataset.info())
+
+    # Create and fit X scaler on original features
+    scaler_X = StandardScaler()
+    scaler_X.fit(feature_dataset[FEATURE_COLS])
+
+    # Save X scaler to separate file
+    scaler_x_path = path_builder("data", "scaler_X.pkl")
+    with open(scaler_x_path, "wb") as f:
+        pickle.dump(scaler_X, f)
+
+    print(f"X scaler saved to {scaler_x_path}")
+    
     # print(scaling_metadata)
 
     window_df = feature_dataset.copy()
@@ -566,14 +593,24 @@ if __name__ == "__main__":
     print(f"y_train shape: {y_train.shape}")
     print(f"y_train sample: {y_train[:5]}")
 
-    from sklearn.preprocessing import StandardScaler
-    import pickle
     scaler_y = StandardScaler()
     scaler_y.fit(y_train.reshape(-1, 1))
 
     # Save to disk
     with open(SCALER_DATA_PATH, "wb") as f:
         pickle.dump(scaler_y, f)
+    
+    # Load the non-standardized feature dataset
+    original_features = create_feature_dataset(merged_data_clean, stock_df)
+
+    # Create and fit X scaler on original features
+    scaler_X = StandardScaler()
+    scaler_X.fit(original_features[FEATURE_COLS])
+
+    # Save X scaler to separate file
+    scaler_x_path = path_builder("data", "scaler_X.pkl")
+    with open(scaler_x_path, "wb") as f:
+        pickle.dump(scaler_X, f)
     
     print(f"Final dataset shape: {feature_dataset.shape}")
     print(f"Features: {feature_dataset.columns.tolist()}")

@@ -2,8 +2,9 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
-from src.model.config import GRU_MODEL_SAVE_PATH, SCALER_DATA_PATH, FEATURE_COLS
-from src.features.build_features import X_test_path, y_test_path, y_train_path
+from src.model.config import GRU_MODEL_SAVE_PATH, SCALER_DATA_PATH, FEATURE_COLS, FEATURE_DATA_PATH, TARGET_COL
+from src.features.build_features import X_test_path, y_test_path, y_train_path, X_train_path
+from src.utils import path_builder
 
 from src.neural.attentive_gru import AttentiveGRU
 from src.neural.dataset import OptionSequenceDataset
@@ -12,6 +13,10 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, median_absolute_error, explained_variance_score, root_mean_squared_error
 
 import pandas as pd
+import logging
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def evaluate_model(model, data_loader, scaler_y=None, device="cpu"):
     model.eval()
@@ -25,9 +30,9 @@ def evaluate_model(model, data_loader, scaler_y=None, device="cpu"):
             trues.append(y_batch.numpy())
     y_pred = np.concatenate(preds)
     y_true = np.concatenate(trues)
-    if scaler_y is not None:
-        y_pred = scaler_y.inverse_transform(y_pred.reshape(-1, 1)).flatten()
-        y_true = scaler_y.inverse_transform(y_true.reshape(-1, 1)).flatten()
+    # if scaler_y is not None:
+    #     y_pred = scaler_y.inverse_transform(y_pred.reshape(-1, 1)).flatten()
+    #     y_true = scaler_y.inverse_transform(y_true.reshape(-1, 1)).flatten()
     return y_true, y_pred
 
 def regression_metrics(y_true, y_pred):
@@ -107,7 +112,44 @@ if __name__ == "__main__":
 
     # load the scaler for y
     with open(SCALER_DATA_PATH, "rb") as f:
-        scaler_y = pickle.load(f)
+        scaler_dict = pickle.load(f)
+        print(type(scaler_dict))
+
+    if isinstance(scaler_dict, dict):
+        scaler_X = scaler_dict.get('scaler_X')
+        scaler_y = scaler_dict.get('scaler_y')
+        print("Both X and y scalers loaded successfully")
+    else:
+        # Fallback for old format (just y scaler)
+        scaler_y = scaler_dict
+        scaler_X = None
+        print("Only y scaler found (old format)")
+
+    # Load the X scaler from separate file if not found in main scaler
+    if scaler_X is None:
+        scaler_x_path = path_builder("data", "scaler_X.pkl")
+        try:
+            with open(scaler_x_path, "rb") as f:
+                scaler_X = pickle.load(f)
+            print("X scaler loaded successfully from separate file")
+        except FileNotFoundError:
+            print("Warning: X scaler file not found")
+            scaler_X = None
+
+    # Add this debugging section right after line 117 (after loading scalers):
+    print("=== SCALER DEBUG ===")
+    print(f"scaler_dict type: {type(scaler_dict)}")
+    print(f"scaler_dict keys: {scaler_dict.keys() if isinstance(scaler_dict, dict) else 'Not a dict'}")
+    print(f"scaler_X is None: {scaler_X is None}")
+    print(f"scaler_y is None: {scaler_y is None}")
+
+    if scaler_X is not None:
+        print(f"scaler_X type: {type(scaler_X)}")
+        print(f"scaler_X has mean_: {hasattr(scaler_X, 'mean_')}")
+        if hasattr(scaler_X, 'mean_'):
+            print(f"scaler_X mean shape: {scaler_X.mean_.shape}")
+            print(f"scaler_X first 3 means: {scaler_X.mean_[:3]}")
+    print("=====================")
 
     # -------- Load model --------
     model = AttentiveGRU(
@@ -141,7 +183,9 @@ if __name__ == "__main__":
 
 
     # Your feature names (ordered as in your data!)
-    feature_names = FEATURE_COLS
+    # feature_names = FEATURE_COLS + [TARGET_COL]
+    feature_names = FEATURE_COLS.copy()  # Don't include TARGET_COL since X_flat only has features
+    print(f"Feature names (without target): {len(feature_names)} features")
 
     # If X_test is 3D [N, window_size, num_features], just take last row for each window:
     if len(X_test.shape) == 3:
@@ -150,8 +194,36 @@ if __name__ == "__main__":
     else:
         X_flat = X_test
 
-    # Create the DataFrame
-    df_results = pd.DataFrame(X_flat, columns=feature_names)
+    # Adjust feature_names if they do not match the number of features in X_flat
+    if X_flat.shape[1] != len(feature_names):
+        print(f"Adjusting feature names: received {X_flat.shape[1]} features but got {len(feature_names)} names.")
+        # Slice feature_names to match X_flat shape. Adjust slicing as needed.
+        feature_names = feature_names[:X_flat.shape[1]]
+
+    # Add this debugging section right after creating X_flat (around line 168):
+    print("=== X_FLAT DEBUG ===")
+    print(f"X_flat shape: {X_flat.shape}")
+    print(f"X_flat first sample first 3 features: {X_flat[0][:3]}")
+    print("=====================")
+
+    # Create the DataFrame with unscaled features
+    if scaler_X is not None:
+        # Add this debugging block before applying inverse_transform:
+        if scaler_X is not None:
+            print("DEBUG: scaler_X.mean_ =", scaler_X.mean_)
+            print("DEBUG: scaler_X.scale_ =", scaler_X.scale_)
+            # Manually compute first sample unscaled value for comparison:
+            sample_scaled = X_flat[0]
+            sample_unscaled_manual = sample_scaled * scaler_X.scale_ + scaler_X.mean_
+            print("DEBUG: First X_flat sample (scaled):", sample_scaled)
+            print("DEBUG: First X_flat sample (manually unscaled):", sample_unscaled_manual)
+            
+            X_flat_unscaled = scaler_X.inverse_transform(X_flat)
+            df_results = pd.DataFrame(X_flat_unscaled, columns=feature_names)
+            print("Features unscaled successfully using scaler_X")
+        else:
+            df_results = pd.DataFrame(X_flat, columns=feature_names)
+            print("Warning: scaler_X not available, using scaled features")
 
     # Add y_test, y_pred, and delta (prediction error)
     df_results['y_true'] = y_true
@@ -177,12 +249,18 @@ if __name__ == "__main__":
     print("Number of samples after dropping y_true < 50:", len(df_results))
     #df_results.sort_values(by='abs_diff', ascending=True, inplace=True)
 
+    print("gru range:", df_results['y_true'].min(), df_results['y_true'].max())
+    
+    print(f"gru eval result columbs: {df_results.columns.tolist()}")
+
+    # Save results to CSV
+    df_results.to_csv("gru_evaluation_results.csv", index=False)
 
     # See the first 10 rows
     print(df_results.head(10))
 
 
-        # plot_predictions(y_true, y_pred, title="GRU Test: True vs Predicted")
-        # plot_residuals(y_true, y_pred, title="GRU Test: Residuals")
-        # plot_histograms(y_true, y_pred, title="GRU Test: Value and Error Distribution")
-        # plot_qq(y_pred - y_true, title="GRU Test: QQ Plot of Residuals")
+    plot_predictions(y_true, y_pred, title="GRU Test: True vs Predicted")
+    plot_residuals(y_true, y_pred, title="GRU Test: Residuals")
+    plot_histograms(y_true, y_pred, title="GRU Test: Value and Error Distribution")
+    plot_qq(y_pred - y_true, title="GRU Test: QQ Plot of Residuals")
