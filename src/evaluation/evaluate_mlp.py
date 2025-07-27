@@ -1,28 +1,14 @@
-import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
 import pandas as pd
-import xgboost as xgb
-from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error, confusion_matrix, median_absolute_error, explained_variance_score
-from src.models.config import FEATURE_DATA_PATH, FEATURE_COLS, TARGET_COL, HYPERPARAM_SPACE, MODEL_SAVE_PATH
-
-def plot_feature_importance(model, feature_names, max_features=20):
-    """Plot XGBoost's built-in and custom bar feature importance."""
-    # XGBoost's built-in plot
-    xgb.plot_importance(model, importance_type='gain', show_values=False, max_num_features=max_features)
-    plt.title("XGBoost Feature Importance (Gain)")
-    plt.tight_layout()
-    plt.show()
-    
-    # Custom bar plot
-    importances = model.feature_importances_
-    indices = importances.argsort()[::-1]
-    plt.figure(figsize=(10, 6))
-    plt.bar(range(len(feature_names)), importances[indices], align='center')
-    plt.xticks(range(len(feature_names)), [feature_names[i] for i in indices], rotation=45)
-    plt.title("Feature Importances (XGBoost)")
-    plt.tight_layout()
-    plt.show()
+import matplotlib.pyplot as plt
+import seaborn as sns
+import torch
+import json
+import pickle
+from src.utils import path_builder
+from src.models.pytorch_mlp import build_mlp
+from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error, confusion_matrix, median_absolute_error, explained_variance_score
+from src.models.config import FEATURE_DATA_PATH, FEATURE_COLS, TARGET_COL
 
 def plot_predictions_vs_true(y_true, y_pred, max_points=100000):
     """
@@ -61,13 +47,13 @@ def plot_predictions_vs_true(y_true, y_pred, max_points=100000):
     plt.scatter(y_true_sample, y_pred_sample, alpha=0.5)
     
     # Add diagonal line (perfect predictions)
-    min_val = min(y_true_sample.min(), y_pred_sample.min())
-    max_val = max(y_true_sample.max(), y_pred_sample.max())
+    min_val = min(np.min(y_true_sample), np.min(y_pred_sample))
+    max_val = max(np.max(y_true_sample), np.max(y_pred_sample))
     plt.plot([min_val, max_val], [min_val, max_val], 'r--')
     
     plt.xlabel('True Values')
     plt.ylabel('Predicted Values')
-    plt.title('XGBoost Predicted vs True Values')
+    plt.title('MLP Predicted vs True Values')
     plt.axis('equal')
     plt.grid(True)
     plt.tight_layout()
@@ -106,8 +92,8 @@ def regression_confusion_matrix(y_true, y_pred, bins=5):
 
 def print_metrics(y_true, y_pred):
     """Print RMSE and MAE."""
-    rmse = root_mean_squared_error(y_true, y_pred)
-    mae = np.mean(np.abs(y_true - y_pred))
+    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+    mae = mean_absolute_error(y_true, y_pred)
     medae = median_absolute_error(y_true, y_pred)
     r2 = r2_score(y_true, y_pred)
     ev = explained_variance_score(y_true, y_pred)
@@ -119,7 +105,7 @@ def print_metrics(y_true, y_pred):
 
 def get_test_data():
     """
-    Get test data using the same time-based split as GRU.
+    Get test data using the same time-based split as other models.
     
     Returns:
         tuple: (X_test, y_test) DataFrames
@@ -127,11 +113,11 @@ def get_test_data():
     print(f"Loading test data from {FEATURE_DATA_PATH}")
     df = pd.read_parquet(FEATURE_DATA_PATH)
     
-    # Use same time-based split as GRU (70/15/15)
+    # Use same time-based split as other models (70/15/15)
     unique_dates = df['date'].sort_values().unique()
     n_dates = len(unique_dates)
     
-    # Calculate split indices (same as GRU)
+    # Calculate split indices
     train_idx = int(n_dates * 0.7)   # 70% for training
     val_idx = int(n_dates * 0.85)    # 85% cumulative (next 15% for validation)
     
@@ -151,42 +137,74 @@ def get_test_data():
     
     return X_test, y_test
 
-# Example usage after training/evaluation in model_train.py:
 if __name__ == "__main__":
-    # Load your trained model
-    model = xgb.XGBRegressor()
-    model.load_model(MODEL_SAVE_PATH)
+    # Load scalers and test data
+    with open(path_builder("data\mlp", "scaler_X.pkl"), "rb") as f:
+        scaler_X = pickle.load(f)
     
-    # Get test data using time-based split (same as GRU)
+    with open(path_builder("data\mlp", "scaler_y.pkl"), "rb") as f:
+        scaler_y = pickle.load(f)
+    
+    # Get raw test data (same as other models)
     X_test, y_test = get_test_data()
     
-    print(f"XGBoost test data shape: {X_test.shape}")
-    print(f"XGBoost test target shape: {y_test.shape}")
+    print(f"MLP test data shape: {X_test.shape}")
+    print(f"MLP test target shape: {y_test.shape}")
     
-    # Apply same filtering as GRU (remove options with price < 50)
+    # Apply same filtering as other models (remove options with price < 50)
     print(f"Number of samples before filtering: {len(y_test)}")
     mask = y_test >= 50
     X_test_filtered = X_test[mask]
     y_test_filtered = y_test[mask]
     
     print(f"Number of samples after filtering y_test >= 50: {len(y_test_filtered)}")
-    print(f"XGBoost test target range (after filtering): {y_test_filtered.min():.2f} to {y_test_filtered.max():.2f}")
+    print(f"MLP test target range (after filtering): {y_test_filtered.min():.2f} to {y_test_filtered.max():.2f}")
     
-    # Make predictions on filtered data
-    preds = model.predict(X_test_filtered)
-    print(f"Predictions shape: {preds.shape}")
-    print(f"Predictions range: {preds.min():.2f} to {preds.max():.2f}")
+    # Scale the filtered data
+    X_test_scaled = scaler_X.transform(X_test_filtered)
+    
+    # Set device
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
+    # Load model config
+    with open(path_builder("src\model_files", "pytorch_mlp_config.json"), "r") as f:
+        model_config = json.load(f)
+    
+    # Create model with same architecture
+    model = build_mlp(
+        input_dim=model_config['input_dim'],
+        hidden_units=model_config['hidden_units'],
+        dropout_rate=model_config['dropout_rate']
+    )
+    
+    # Load model weights
+    model.load_state_dict(torch.load(path_builder("src\model_files", "best_pytorch_mlp.pt"), 
+                                     map_location=device))
+    model.to(device)
+    model.eval()  # Set to evaluation mode
+    
+    # Convert data to tensor
+    X_test_tensor = torch.FloatTensor(X_test_scaled).to(device)
+    
+    # Make predictions
+    with torch.no_grad():
+        y_pred_scaled = model(X_test_tensor).cpu().numpy().flatten()
+    
+    # Convert predictions back to original scale
+    y_pred = scaler_y.inverse_transform(y_pred_scaled.reshape(-1, 1)).flatten()
+    
+    print(f"Predictions shape: {y_pred.shape}")
+    print(f"Predictions range: {y_pred.min():.2f} to {y_pred.max():.2f}")
     
     # Generate evaluation plots and metrics
-    plot_feature_importance(model, FEATURE_COLS)
-    plot_predictions_vs_true(y_test_filtered, preds)
-    plot_residuals(y_test_filtered, preds)
-    regression_confusion_matrix(y_test_filtered, preds, bins=5)
-    print_metrics(y_test_filtered, preds)
+    plot_predictions_vs_true(y_test_filtered, y_pred)
+    plot_residuals(y_test_filtered, y_pred)
+    regression_confusion_matrix(y_test_filtered, y_pred, bins=5)
+    print_metrics(y_test_filtered, y_pred)
     
     # Create and print a table with input features, predictions, and true values
     results_df = pd.DataFrame(X_test_filtered, columns=FEATURE_COLS)
-    results_df['predicted_price'] = preds
+    results_df['predicted_price'] = y_pred
     results_df['true_price'] = y_test_filtered.values
     results_df['error'] = results_df['true_price'] - results_df['predicted_price']
     results_df['abs_error'] = results_df['error'].abs()
@@ -198,15 +216,12 @@ if __name__ == "__main__":
     print(results_df.head(10).to_string())
     
     # Save the complete results table
-    results_df.to_csv("xgboost_predictions.csv", index=False)
-    print(f"Full results saved to xgboost_predictions.csv")
+    results_df.to_csv("mlp_predictions.csv", index=False)
+    print(f"Full results saved to mlp_predictions.csv")
     
     # Summary comparison output
     print("\n" + "="*50)
     print("SUMMARY:")
-    print(f"XGBoost test samples: {len(y_test_filtered)}")
-    print(f"XGBoost target range: {y_test_filtered.min():.2f} to {y_test_filtered.max():.2f}")
+    print(f"MLP test samples: {len(y_test_filtered)}")
+    print(f"MLP target range: {y_test_filtered.min():.2f} to {y_test_filtered.max():.2f}")
     print("="*50)
-
-    df = pd.DataFrame(X_test_filtered, columns=FEATURE_COLS)
-    df.to_csv("xgboost_test_data.csv", index=False)
