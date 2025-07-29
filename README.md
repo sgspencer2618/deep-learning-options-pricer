@@ -2,7 +2,7 @@
 
 ## Summary
 
-This project explores machine learning models for options price prediction using engineered financial features. We compare XGBoost, a Multilayer Perceptron (MLP), and a Gated Recurrent Unit (GRU) model on historical market data. The MLP achieved the lowest average percentage error, outperforming both XGBoost and the more complex GRU, which struggled on tabular data despite its sequential architecture. Our results highlight that model complexity alone does not ensure better performance; model choice should align with data characteristics and feature structure.
+This project explores machine learning models for options price prediction using engineered financial features. We compare XGBoost, a Multilayer Perceptron (MLP), and a Gated Recurrent Unit (GRU) model on historical market data. While MLP had the lowest average error in the full test set, this is partly due to data imbalance; the GRU actually outperformed all models on the most common price range (under $140), as shown in the low-value test sample. Our results highlight that model choice should align with data characteristics and feature structure.
 
 ## Table of Contents
 1. [Summary](#summary)
@@ -112,6 +112,7 @@ Gated Recurrent Unit (GRU) neural networks with attention for sequence modeling,
 <p align="center">
   <img src="assets\MLP_config.png" width="500"/>
 </p>
+
 ### Tuning and Feature Scaling
 Optuna was used for GRU hyperparameter tuning. Feature was scaling handled using numpy and pandas. The MLP used an Adam optimizer.
 
@@ -168,10 +169,10 @@ Price Data Distribution:
 |:-----------------------------------------------:|:-----------------------------------------------------:|
 | True vs Predicted Price                         | MLP Feature Importance                            |
 
-### Analysis
+## Analysis
 
-#### Model Evaluation Tables
-Below is a table comparing the predictions of the GRU models with a test data sample, with the $\Delta$-values representing the difference between the model prediction and the true price.
+#### Performance on Test Dataset
+Below are tables comparing the predictions of the GRU models with a test data sample, with the $\Delta$-values representing the difference between the model prediction and the true price. Since the GRU was trained and tested on rolling windows, the metrics below are taken **at random** from only **matching rows** across the test data (non-windowed for MLP, XGB and windowed for GRU). **This may skew analyses for GRU performance against the other models**.
 
 #### Absolute Error
 
@@ -201,28 +202,52 @@ Here are the average percentage errors for each model **from this test sample**:
 
 | Average $\Delta$ XGBoost (%) | Average $\Delta$ GRU (%) | Average $\Delta$ MLP (%)|
 |------------------------------|--------------------------|-------------------------|
-| 12.317                       |15.253                    | 6.505                   |
+| 12.317                       | 15.253                   | **6.505**                   |
 
 #### Overall Average Error Metrics
 
-And here are the **overall** approximate average percentage errors for each model **from the test data**:
+And here are the **overall** approximate average percentage errors for each model **from only the matching rows of the test data**:
 
 | Average $\Delta$ XGBoost (%) | Average $\Delta$ GRU (%) | Average $\Delta$ MLP (%)|
 |------------------------------|--------------------------|-------------------------|
-| 15.56                        | 28.23                    | 13.11                   |
+| 15.56                        | 28.23                    | **13.11**                   |
+
+### Performance on Undersampled/Low-Mid-Value Contracts
+#### Addressing Test Data Imbalance
+The metrics above show the more complex GRU model's underperformance in relation to the MLP and XGB models.
+
+However, analyzing the GRU's metrics and test data show that the GRU **hugely outperforms** the MLP and XGB in pricing **mid-to-lower-value contracts (value < 140)** and that the dataset of matching rows from which the above contracts were taken is **skewed such that only ~2% of the contracts are of value < 140**. Sampling this 2% of the test data, we can see that the **GRU outperforms the other two models** in almost all cases.
+
+| True Price ($) | XBoost ($) | GRU ($)   | MLP ($)   | $\Delta$ XGBoost (%) | $\Delta$ GRU (%) | $\Delta$ MLP (%) |
+|----------------|------------|-----------|-----------|----------------------|------------------|------------------|
+| 62.82          | 61.43354   | 59.48655  | 61.65081  | 2.21%                | 5.31%            | 1.86%            |
+| 126.52         | 124.18036  | 127.01633 | 137.10991 | 1.85%                | 0.39%            | 8.37%            |
+| 62.68          | 70.34517   | 63.12310  | 80.28888  | 12.23%               | 0.71%            | 28.09%           |
+| 127.02         | 105.78838  | 128.68573 | 132.18924 | 16.72%               | 1.31%            | 4.07%            |
+| 126.73         | 100.01202  | 126.66743 | 128.86774 | 21.08%               | 0.05%            | 1.69%            |
+| 137.97         | 115.07793  | 133.05862 | 136.33330 | 16.59%               | 3.56%            | 1.19%            |
+
+Here are the average percentage errors for each model **from the undersampled rows**:
+
+| Average $\Delta$ XGBoost (%) | Average $\Delta$ GRU (%) | Average $\Delta$ MLP (%) |
+|------------------------------|--------------------------|--------------------------|
+| 7.82                         | **2.40**                     | 6.10                     |
+
 
 ## Overall Performance Evaluation
 
 The performance metrics above highlight each model's characteristics influence options price prediction accuracy.
 
-### Best Performance: MLP
+### Best Performance on Test Sample: MLP
 Overall, the MLP (fully-connected neural network) had the lowest average error across the test sample, benefiting from its ability to model the complex nonlinear relationships present in options data, performing particularly well on mid-priced contracts. However, the model struggles with extreme values due to data imbalance. The flexibility of the MLP along with its respectable performance distinguishes as the best model option out of the three models compared we have.
 
+### Best Overall Performance: GRU
+In my analysis, I believe that due to the data imbalance in the test data (addressed in the above section), the GRU's performance was misrepresented in the test sample. Also, with the skewness of the training dataset (right skewed, many more training examples for lower prices contracts), I feel that the GRU's strong performance in the mid-low priced options puts it above the other two models, with the unbalanced data being its limiting factor.
+
 ### Takeaways
-- **Model complexity does not guarantee better performance**, the GRU - despite being a more complex model - was outperformed by both the XGBoost and MLP models. This may be due to the domination of engineered tabular features in the training data.
 - **XGBoost remains competitive**, offering strong baseline results, however struggling on outliers and extreme price values.
 - **Model selection should be data-driven**, Rather than defaulting to more sophisticated models, it’s important to validate which architecture aligns best with the underlying data and task.
-- **Proper feature engineering and preprocessing can enable simpler models to outperform more sophisticated architectures when data structure favors them.**
+- **Proper feature engineering and preprocessing may enable simpler models to outperform more sophisticated architectures when data structure favors them.**
 - Large errors for all models on high-priced options highlight the need for **specialized treatment or feature engineering for outliers/extremes** in (unbalanced) financial datasets.
 
 
@@ -233,7 +258,7 @@ Overall, the MLP (fully-connected neural network) had the lowest average error a
 2. Only considers vanilla options; no spreads/multileg.
 
 ### Next Steps
-- Take steps to improve GRU performance
+- Take steps to improve GRU performance through over/undersampling training data for training
 - Implement LSTM (Long Short-Term Memory) model to compare
 - Ensemble models
 - More features
