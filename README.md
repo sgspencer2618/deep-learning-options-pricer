@@ -1,27 +1,32 @@
 # Deep Learning for US Options Pricing ($AAPL Equity Options)
 
-## Table of Contents
+## Summary
 
-1. [Project Description](#project-description)
-2. [Motivation & Background](#motivation--background)
-3. [Data Description](#data-description)
+This project explores machine learning models for options price prediction using engineered financial features. We compare XGBoost, a Multilayer Perceptron (MLP), and a Gated Recurrent Unit (GRU) model on historical market data. The MLP achieved the lowest average percentage error, outperforming both XGBoost and the more complex GRU, which struggled on tabular data despite its sequential architecture. Our results highlight that model complexity alone does not ensure better performance; model choice should align with data characteristics and feature structure.
+
+## Table of Contents
+1. [Summary](#summary)
+2. [Project Description](#project-description)
+3. [Motivation & Background](#motivation--background)
+4. [Data Description](#data-description)
     - [Feature Engineering](#feature-engineering)
-4. [Repository Structure](#repository-structure)
-5. [Modeling Approach](#modeling-approach)
+5. [Repository Structure](#repository-structure)
+6. [Modeling Approach](#modeling-approach)
     - [Baseline](#baseline)
     - [Advanced](#advanced)
     - [Tuning and Feature Scaling](#tuning-and-feature-scaling)
-6. [Evaluation & Results](#evaluation--results)
+7. [Evaluation & Results](#evaluation--results)
     - [Models Compared](#models-compared)
     - [Performance Highlights](#performance-highlights)
     - [Key Plots](#key-plots)
     - [Analysis](#analysis)
-7. [Limitations & Future Work](#limitations--future-work)
+    - [Overall Performance Evaluation](#overall-performance-evaluation)
+8. [Limitations & Future Work](#limitations--future-work)
     - [Limitations](#limitations)
     - [Next Steps](#next-steps)
-8. [How to Run](#how-to-run)
-9. [References](#references)
-10. [Contact / Contribution / License](#contact--contribution--license)
+9. [How to Run](#how-to-run)
+10. [References](#references)
+11. [License](#license)
 
 ## Project Description
 
@@ -70,31 +75,43 @@ I also feature-engineered several 'compound' features, calculated as simple prod
 4. 'theta_x_intrinsic',
 
 ## Repository Structure
-```
-├───.github             # GitHub Actions/workflows for CI/CD automation
-│   └───workflows           # CI/CD pipeline YAMLs
-├───/dataIngest         # Automated data ingestion (config, helpers, schedulers, scripts)
-│   ├───/config             # Ingestion configuration (API keys, settings)
-│   ├───/helpers          # Utility functions for metadata, S3, etc.
-│   ├───/logs               # Logs for ingestion processes
-│   ├───/scheduler          # Scheduler scripts for timed data pulls
-│   ├───/scripts            # Standalone scripts for fetching data
-│   └───/src                # Core ingestion pipeline modules
-├───/notebooks          # Jupyter notebooks for exploration and prototyping
-├───/scripts            # Utility or run scripts (real-time, batch jobs, etc.)
-└───/src                # Main source code for modeling and features
-    ├───/features           # Feature engineering, indicator, and preprocessing code
-    ├───/model              # XGBoost Model training, config, and evaluation
-    └───/neural             # Neural network (GRU, attention) modules and experiments
+
+``` 
+├── .github             # GitHub Actions/workflows for CI/CD automation
+│   └── workflows       # CI/CD pipeline YAMLs
+├── assets              # Static assets (eval/metric graphs)
+├── data                # Local data directory for final model inputs/outputs
+│   └── mlp                 # Data specifically used for MLP model training
+├── dataIngest          # Automated data ingestion pipeline
+│   ├── config              # Config files (API keys, settings, parameters)
+│   ├── helpers             # Utility functions (file handling, S3, etc.)
+│   ├── logs                # Runtime logs for ingestion jobs
+│   ├── scheduler           # Scheduler scripts for timed ingestion
+│   ├── scripts             # One-off or batch ingestion scripts
+│   └── src                 # Core pipeline modules for ingestion logic
+├── logs                # General logs for model training, debugging, etc.
+├── scripts             # Executable scripts for training, evaluation, or batch jobs
+├── src                 # Main source code for modeling pipeline
+│   ├── datasets            # Dataset loaders and preprocessing
+│   ├── evaluation          # Model evaluation, metrics, and visualization tools
+│   ├── features            # Feature engineering, technical indicators, etc.
+│   ├── models              # Model definitions and configuration: GRU, XGBoost, MLP, etc.
+│   ├── model_files         # Serialized models, configs, and artifacts
+│   └── training            # Training loops and files (XGB, GRU, MLP)
 ```
 
 ## Modeling Approach
+Models were trained on-device with identical training conditions.
 ### Baseline
 XGBoost regression was used for speed and feature importance as a baseline to compare the other models' performance.
 
 ### Advanced
 Gated Recurrent Unit (GRU) neural networks with attention for sequence modeling, implementing with and without weighted loss functions to target fat tails and rare, high-value contracts. Multilayer Perceptron with 3 hidden layers, batch normalization, dropout, and L2 regularization (weight_decay).
 
+### MLP Configuration
+<p align="center">
+  <img src="assets\MLP_config.png" width="500"/>
+</p>
 ### Tuning and Feature Scaling
 Optuna was used for GRU hyperparameter tuning. Feature was scaling handled using numpy and pandas. The MLP used an Adam optimizer.
 
@@ -109,26 +126,26 @@ Optuna was used for GRU hyperparameter tuning. Feature was scaling handled using
 ### Performance Highlights
 
 ### Metrics
+Data was split (70:15:25) train-val-test, and models were trained and evaluated on the identical training, validation, and testing data to ensure comparable results.
 
 #### XGBoost Metrics
-On a smaller test set (15%) segmented from the full data, the XGBoost model performed as follows:
 - RMSE: 11.65148
 - MAE: 7.56345
 - MedAE: 3.79191
 - R2: 0.90826
 
 #### GRU Metrics
-The GRU was trained on rolling windows taken from the same training data. the model performed as follows:
+The GRU was trained on rolling windows taken from the same training data, and tested on the same segmented data set, process into rolling windows. the model performed as follows:
 - RMSE: 3.01269
 - MAE: 2.57142
 - MedAE: 0.51145
 - R2: 0.96596
 
 #### MLP Metrics
-RMSE: 10.81831
-MAE: 8.26400
-MedAE: 7.04856
-R2: 0.92091
+- RMSE: 10.81831
+- MAE: 8.26400
+- MedAE: 7.04856
+- R2: 0.92091
 
 ### Key plots
 
@@ -153,16 +170,62 @@ Price Data Distribution:
 
 ### Analysis
 
-#### Model Evaluation Table
-Below is a table comparing the predictions of the GRU models, with the $\Delta$-values representing the difference between the model prediction and the true price.
+#### Model Evaluation Tables
+Below is a table comparing the predictions of the GRU models with a test data sample, with the $\Delta$-values representing the difference between the model prediction and the true price.
 
-| True Price ($) | XBoost ($) | GRU ($)     | MLP ($)    | $\Delta$ XGBoost (Abs) | $\Delta$ GRU (Abs) | $\Delta$ MLP (Abs)|
-| -------------- | -----------|-------------|------------|------------------------|--------------------|-------------------|
-| 122.93         | 121.92339  | 119.491135  | 122.65782  | 1.00661                | 3.43887            | 0.27218           |                   
-| 63.32          | 64.440445  | 60.955967   | 67.25442   | 1.12044                | 2.36403            | 3.93442           |
-| 62.82          | 61.433544  | 59.486553   | 61.650814  | 1.38646                | 3.33345            | 1.16919           |
-| 146.52         | 148.74052  | 144.68823   | 141.23569  | 2.22052                | 1.83177            | 5.28431           |
-| 126.52         | 124.18036  | 127.01633   | 137.10991  | 2.33964                | 0.49633            | 10.58991          |
+#### Absolute Error
+
+| True Price ($) | XBoost ($) | GRU ($)   | MLP ($)   | $\Delta$ XGBoost (Abs)  | $\Delta$ GRU (Abs) | $\Delta$ MLP (Abs) |
+|----------------|------------|-----------|-----------|-------------------------|--------------------|--------------------|
+| 122.93         | 121.92339  | 119.49114 | 122.65782 | 1.00661                 | 3.43887            | 0.27218            |
+| 137.23         | 141.28304  | 133.08649 | 140.21288 | 4.05304                 | 4.14351            | 2.98288            |
+| 166.73         | 162.74054  | 163.80864 | 153.64980 | 3.98946                 | 2.92136            | 13.08020           |
+| 146.23         | 126.39964  | 136.40060 | 141.14595 | 19.83036                | 9.82939            | 5.08405            |
+| 209.47         | 167.93335  | 132.48540 | 163.00860 | 41.53665                | 76.98460           | 46.46139           |
+| 225.57         | 148.08543  | 134.25928 | 218.50418 | 77.48457                | 91.31073           | 7.06582            |
+
+
+Here are the percentage errors represented similarly:
+
+#### Percentage Error
+| True Price ($) | XBoost ($) | GRU ($)   | MLP ($)   | $\Delta$ XGBoost (%) | $\Delta$ GRU (%) | $\Delta$ MLP (%) |
+|----------------|------------|-----------|-----------|----------------------|------------------|------------------|
+| 122.93         | 121.92339  | 119.49114 | 122.65782 | 0.82%                | 2.80%            | 0.22%            |
+| 137.23         | 141.28304  | 133.08649 | 140.21288 | 2.95%                | 3.02%            | 2.17%            |
+| 166.73         | 162.74054  | 163.80864 | 153.64980 | 2.39%                | 1.75%            | 7.85%            |
+| 146.23         | 126.39964  | 136.40060 | 141.14595 | 13.56%               | 6.72%            | 3.48%            |
+| 209.47         | 167.93335  | 132.48540 | 163.00860 | 19.83%               | 36.75%           | 22.18%           |
+| 225.57         | 148.08543  | 134.25928 | 218.50418 | 34.35%               | 40.48%           | 3.13%            |
+
+Here are the average percentage errors for each model **from this test sample**:
+
+| Average $\Delta$ XGBoost (%) | Average $\Delta$ GRU (%) | Average $\Delta$ MLP (%)|
+|------------------------------|--------------------------|-------------------------|
+| 12.317                       |15.253                    | 6.505                   |
+
+#### Overall Average Error Metrics
+
+And here are the **overall** approximate average percentage errors for each model **from the test data**:
+
+| Average $\Delta$ XGBoost (%) | Average $\Delta$ GRU (%) | Average $\Delta$ MLP (%)|
+|------------------------------|--------------------------|-------------------------|
+| 15.56                        | 28.23                    | 13.11                   |
+
+## Overall Performance Evaluation
+
+The performance metrics above highlight each model's characteristics influence options price prediction accuracy.
+
+### Best Performance: MLP
+Overall, the MLP (fully-connected neural network) had the lowest average error across the test sample, benefiting from its ability to model the complex nonlinear relationships present in options data, performing particularly well on mid-priced contracts. However, the model struggles with extreme values due to data imbalance. The flexibility of the MLP along with its respectable performance distinguishes as the best model option out of the three models compared we have.
+
+### Takeaways
+- **Model complexity does not guarantee better performance**, the GRU - despite being a more complex model - was outperformed by both the XGBoost and MLP models. This may be due to the domination of engineered tabular features in the training data.
+- **XGBoost remains competitive**, offering strong baseline results, however struggling on outliers and extreme price values.
+- **Model selection should be data-driven**, Rather than defaulting to more sophisticated models, it’s important to validate which architecture aligns best with the underlying data and task.
+- **Proper feature engineering and preprocessing can enable simpler models to outperform more sophisticated architectures when data structure favors them.**
+- Large errors for all models on high-priced options highlight the need for **specialized treatment or feature engineering for outliers/extremes** in (unbalanced) financial datasets.
+
+
 ## Limitations & Future Work
 
 ### Limitations
@@ -170,6 +233,7 @@ Below is a table comparing the predictions of the GRU models, with the $\Delta$-
 2. Only considers vanilla options; no spreads/multileg.
 
 ### Next Steps
+- Take steps to improve GRU performance
 - Implement LSTM (Long Short-Term Memory) model to compare
 - Ensemble models
 - More features
