@@ -1,5 +1,9 @@
 # Deep Learning for US Options Pricing ($AAPL Equity Options)
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/5ef3adce-335f-445c-bc03-2d84f804db39" width="500"/>
+</p>
+
 ## Summary
 
 This project explores machine learning models for options price prediction using engineered financial features. We compare XGBoost, a Multilayer Perceptron (MLP), and a Gated Recurrent Unit (GRU) model on historical market data. While MLP had the lowest average error in the full test set, this is partly due to data imbalance; the GRU actually outperformed all models on the most common price range (under $140), as shown in the low-value test sample. Our results highlight that model choice should align with data characteristics and feature structure.
