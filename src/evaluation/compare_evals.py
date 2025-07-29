@@ -78,6 +78,14 @@ def find_matching_rows():
     print(merged_df.head())
     merged_df['avg_abs_error'] = (merged_df['abs_error_xgb'] + merged_df['abs_error_gru']) + merged_df['abs_error_mlp'] / 3
 
+    # Calculate percentage errors
+    merged_df['pct_error_xgb'] = (merged_df['abs_error_xgb'] / merged_df['y_true']) * 100
+    merged_df['pct_error_gru'] = (merged_df['abs_error_gru'] / merged_df['y_true']) * 100
+    merged_df['pct_error_mlp'] = (merged_df['abs_error_mlp'] / merged_df['y_true']) * 100
+    
+    # Average percentage error
+    merged_df['avg_pct_error'] = (merged_df['pct_error_xgb'] + merged_df['pct_error_gru'] + merged_df['pct_error_mlp']) / 3
+
     # Sort by average absolute error
     merged_df = merged_df.sort_values('avg_abs_error')
     
@@ -122,6 +130,13 @@ if __name__ == "__main__":
     print("\nError Statistics:")
     print(f"Average XGBoost abs error: {merged['abs_error_xgb'].mean():.4f}")
     print(f"Average GRU abs error: {merged['abs_error_gru'].mean():.4f}")
+    print(f"Average MLP abs error: {merged['abs_error_mlp'].mean():.4f}")
     print(f"XGB better prediction count: {(merged['abs_error_xgb'] < merged['abs_error_gru']).sum()}")
     print(f"GRU better prediction count: {(merged['abs_error_gru'] < merged['abs_error_xgb']).sum()}")
     print(f"Tie count: {(merged['abs_error_xgb'] == merged['abs_error_gru']).sum()}")
+    
+    # Print percentage error statistics
+    print("\nPercentage Error Statistics:")
+    print(f"Average XGBoost percentage error: {merged['pct_error_xgb'].mean():.2f}%")
+    print(f"Average GRU percentage error: {merged['pct_error_gru'].mean():.2f}%")
+    print(f"Average MLP percentage error: {merged['pct_error_mlp'].mean():.2f}%")
