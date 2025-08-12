@@ -2,7 +2,11 @@
 
 ## Summary
 
-This project explores machine learning models for options price prediction using engineered financial features. We compare XGBoost, a Multilayer Perceptron (MLP), and a Gated Recurrent Unit (GRU) model on historical market data. While MLP had the lowest average error in the full test set, this is partly due to data imbalance; the GRU actually outperformed all models on the most common price range (under $140), as shown in the low-value test sample. Our results highlight that model choice should align with data characteristics and feature structure. @!@!@!@!@!@!@!@!@!@!@!@!@!@!@!@!@!@!@!@!
+This project explores machine learning models for options price prediction. We compare XGBoost (gradient boosting), a Multilayer Perceptron (MLP), and a Gated Recurrent Unit (GRU) with time series windowing on historical $AAPL options data. The MLP achieved the lowest overall test error (28.03% average), demonstrating superior generalization across price ranges and smoother prediction surfaces.
+
+However, significant data imbalance affects all models: while the GRU shows competitive performance on abundant mid-range contracts ($50-$150), it exhibits systematic prediction plateaus around $144-145 for high-value options above $180, highlighting the challenges of financial ML with heteroscedastic data. XGBoost provides reliable baseline performance but struggles with extreme values.
+
+Results emphasize that model selection should consider both data distribution characteristics and architectural advantages, with simpler models potentially outperforming complex architectures when properly engineered for the underlying data structure.
 
 ## Table of Contents
 1. [Summary](#summary)
@@ -133,7 +137,6 @@ Optuna was used for GRU hyperparameter tuning. Feature was scaling handled using
     - patience = 10
     - MSE Loss
 - all trained and evaluated on identical engineered theoretical feature set (Greeks, moneyness, TTM, etc.)
-
 
 ### Metrics
 Data was split ~(70:15:25) train-val-test, and models were trained and evaluated on the identical training, validation, and testing data to ensure comparable results.
