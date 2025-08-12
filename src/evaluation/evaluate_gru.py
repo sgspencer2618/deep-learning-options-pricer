@@ -1,19 +1,20 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy import stats
 from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
 from src.models.config import GRU_MODEL_SAVE_PATH, SCALER_DATA_PATH, FEATURE_COLS, FEATURE_DATA_PATH, TARGET_COL, X_TRAIN_PATH, Y_TRAIN_PATH, X_VAL_PATH, Y_VAL_PATH, X_TEST_PATH, Y_TEST_PATH
 from src.utils import path_builder
 
 from src.models.attentive_gru import AttentiveGRU
-from datasets.dataset import OptionSequenceDataset
+from src.datasets.dataset import OptionSequenceDataset
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, median_absolute_error, explained_variance_score, root_mean_squared_error
 
 import pandas as pd
 import logging
-# Set up logging
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -29,9 +30,6 @@ def evaluate_model(model, data_loader, scaler_y=None, device="cpu"):
             trues.append(y_batch.numpy())
     y_pred = np.concatenate(preds)
     y_true = np.concatenate(trues)
-    # if scaler_y is not None:
-    #     y_pred = scaler_y.inverse_transform(y_pred.reshape(-1, 1)).flatten()
-    #     y_true = scaler_y.inverse_transform(y_true.reshape(-1, 1)).flatten()
     return y_true, y_pred
 
 def regression_metrics(y_true, y_pred):
@@ -98,18 +96,58 @@ def plot_qq(residuals, title="QQ Plot of Residuals"):
     plt.title(title)
     plt.show()
 
+def plot_residual_histogram(y_true, y_pred, model_name="GRU"):
+    """Plot histogram of residuals with clipped range for visibility."""
+    residuals = y_true - y_pred
+    
+    # Clip residuals to [-50, 50] range for visualization only
+    residuals_clipped = np.clip(residuals, -50, 50)
+    
+    plt.figure(figsize=(10, 6))
+    plt.hist(residuals_clipped, bins=50, alpha=0.7, color='lightgreen', edgecolor='black')
+    plt.xlim(-50, 50)
+    plt.xlabel('Residuals (True - Predicted) [Clipped to ±50]')
+    plt.ylabel('Frequency')
+    plt.title(f'{model_name} Residual Distribution (Clipped to ±50)')
+    plt.grid(True, alpha=0.3)
+    
+    mean_res = np.mean(residuals)
+    std_res = np.std(residuals)
+    
+    plt.axvline(mean_res, color='red', linestyle='--', label=f'Mean: {mean_res:.2f}')
+    plt.axvline(mean_res + std_res, color='orange', linestyle='--', alpha=0.7, label=f'±1σ: {std_res:.2f}')
+    plt.axvline(mean_res - std_res, color='orange', linestyle='--', alpha=0.7)
+    
+    outliers = np.sum((residuals < -50) | (residuals > 50))
+    plt.text(0.02, 0.98, f'Outliers clipped: {outliers}/{len(residuals)}', 
+             transform=plt.gca().transAxes, verticalalignment='top',
+             bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+    
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+def plot_qq_plot(y_true, y_pred, model_name="GRU"):
+    """Plot Q-Q plot to check if residuals follow normal distribution."""
+    residuals = y_true - y_pred
+    
+    plt.figure(figsize=(8, 8))
+    stats.probplot(residuals, dist="norm", plot=plt)
+    plt.title(f'{model_name} QQ Plot (Residuals vs Normal Distribution)')
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.show()
+
 
 if __name__ == "__main__":
     import pickle
     import torch
     from torch.utils.data import DataLoader
 
-    # -------- Load data --------
     X_test = np.load(X_TEST_PATH)
     y_test = np.load(Y_TEST_PATH)
     y_train = np.load(Y_TRAIN_PATH)
 
-    # load the scaler for y
     with open(SCALER_DATA_PATH, "rb") as f:
         scaler_dict = pickle.load(f)
         print(type(scaler_dict))
@@ -119,12 +157,10 @@ if __name__ == "__main__":
         scaler_y = scaler_dict.get('scaler_y')
         print("Both X and y scalers loaded successfully")
     else:
-        # Fallback for old format (just y scaler)
         scaler_y = scaler_dict
         scaler_X = None
         print("Only y scaler found (old format)")
 
-    # Load the X scaler from separate file if not found in main scaler
     if scaler_X is None:
         scaler_x_path = path_builder("data", "scaler_X.pkl")
         try:
@@ -135,7 +171,6 @@ if __name__ == "__main__":
             print("Warning: X scaler file not found")
             scaler_X = None
 
-    # Add this debugging section right after line 117 (after loading scalers):
     print("=== SCALER DEBUG ===")
     print(f"scaler_dict type: {type(scaler_dict)}")
     print(f"scaler_dict keys: {scaler_dict.keys() if isinstance(scaler_dict, dict) else 'Not a dict'}")
@@ -150,24 +185,18 @@ if __name__ == "__main__":
             print(f"scaler_X first 3 means: {scaler_X.mean_[:3]}")
     print("=====================")
 
-    # -------- Load model --------
     model = AttentiveGRU(
         input_dim=X_test.shape[-1],
-        hidden_dim=128,  # match your training config
-        num_layers=2,
+        hidden_dim=128,
+        num_layers=4,
         use_attention=True
     )
-    model.load_state_dict(torch.load(GRU_MODEL_SAVE_PATH, map_location="cuda"))
+    model.load_state_dict(torch.load(GRU_MODEL_SAVE_PATH, map_location="cuda", weights_only=False))
 
-    # -------- Make predictions --------
     test_ds = OptionSequenceDataset(X_test, y_test)
     test_loader = DataLoader(test_ds, batch_size=128, shuffle=False)
 
-    # -------- Metrics & Plot --------
-    y_true, y_pred = evaluate_model(model, 
-                                    test_loader, 
-                                    scaler_y=scaler_y, 
-                                    device="cuda")
+    y_true, y_pred = evaluate_model(model, test_loader, scaler_y=scaler_y, device="cuda")
     metrics = regression_metrics(y_true, y_pred)
 
     print("Scaler mean:", scaler_y.mean_[0])
@@ -180,38 +209,42 @@ if __name__ == "__main__":
     inverted = scaler_y.inverse_transform([[scaled]])[0,0]
     print(f"Original: {sample}, Scaled: {scaled}, Inverted: {inverted}")
 
-
-    # Your feature names (ordered as in your data!)
-    # feature_names = FEATURE_COLS + [TARGET_COL]
-    feature_names = FEATURE_COLS.copy()  # Don't include TARGET_COL since X_flat only has features
+    feature_names = FEATURE_COLS.copy()
     print(f"Feature names (without target): {len(feature_names)} features")
 
-    # If X_test is 3D [N, window_size, num_features], just take last row for each window:
     if len(X_test.shape) == 3:
-        # For sequence models: take only the last time step for each sample
         X_flat = X_test[:, -1, :]
     else:
         X_flat = X_test
 
-    # Adjust feature_names if they do not match the number of features in X_flat
     if X_flat.shape[1] != len(feature_names):
         print(f"Adjusting feature names: received {X_flat.shape[1]} features but got {len(feature_names)} names.")
-        # Slice feature_names to match X_flat shape. Adjust slicing as needed.
         feature_names = feature_names[:X_flat.shape[1]]
 
-    # Add this debugging section right after creating X_flat (around line 168):
     print("=== X_FLAT DEBUG ===")
     print(f"X_flat shape: {X_flat.shape}")
     print(f"X_flat first sample first 3 features: {X_flat[0][:3]}")
     print("=====================")
 
-    # Create the DataFrame with unscaled features
     if scaler_X is not None:
-        # Add this debugging block before applying inverse_transform:
-        if scaler_X is not None:
+        if X_flat.shape[1] != len(scaler_X.mean_):
+            print(f"WARNING: Feature dimension mismatch! X_flat has {X_flat.shape[1]} features but scaler has {len(scaler_X.mean_)} features")
+            X_flat_matched = X_flat[:, :len(scaler_X.mean_)]
+            print(f"Using only the first {len(scaler_X.mean_)} features for unscaling")
+            
             print("DEBUG: scaler_X.mean_ =", scaler_X.mean_)
             print("DEBUG: scaler_X.scale_ =", scaler_X.scale_)
-            # Manually compute first sample unscaled value for comparison:
+            sample_scaled = X_flat_matched[0]
+            sample_unscaled_manual = sample_scaled * scaler_X.scale_ + scaler_X.mean_
+            print("DEBUG: First X_flat sample (scaled, matched):", sample_scaled)
+            print("DEBUG: First X_flat sample (manually unscaled):", sample_unscaled_manual)
+            
+            X_flat_unscaled = scaler_X.inverse_transform(X_flat_matched)
+            df_results = pd.DataFrame(X_flat_unscaled, columns=feature_names[:len(scaler_X.mean_)])
+            print("Features unscaled successfully using scaler_X (after dimension matching)")
+        else:
+            print("DEBUG: scaler_X.mean_ =", scaler_X.mean_)
+            print("DEBUG: scaler_X.scale_ =", scaler_X.scale_)
             sample_scaled = X_flat[0]
             sample_unscaled_manual = sample_scaled * scaler_X.scale_ + scaler_X.mean_
             print("DEBUG: First X_flat sample (scaled):", sample_scaled)
@@ -220,11 +253,10 @@ if __name__ == "__main__":
             X_flat_unscaled = scaler_X.inverse_transform(X_flat)
             df_results = pd.DataFrame(X_flat_unscaled, columns=feature_names)
             print("Features unscaled successfully using scaler_X")
-        else:
-            df_results = pd.DataFrame(X_flat, columns=feature_names)
-            print("Warning: scaler_X not available, using scaled features")
+    else:
+        df_results = pd.DataFrame(X_flat, columns=feature_names)
+        print("Warning: scaler_X not available, using scaled features")
 
-    # Add y_test, y_pred, and delta (prediction error)
     df_results['y_true'] = y_true
     df_results['y_pred'] = y_pred
     df_results['abs_diff'] = df_results['y_pred'] - df_results['y_true']
@@ -246,20 +278,17 @@ if __name__ == "__main__":
     df_results['pct_error'] = (df_results['y_pred'] - df_results['y_true']) / df_results['y_true'] * 100
 
     print("Number of samples after dropping y_true < 50:", len(df_results))
-    #df_results.sort_values(by='abs_diff', ascending=True, inplace=True)
 
     print("gru range:", df_results['y_true'].min(), df_results['y_true'].max())
-    
     print(f"gru eval result columbs: {df_results.columns.tolist()}")
 
-    # Save results to CSV
     df_results.to_csv("gru_evaluation_results.csv", index=False)
-
-    # See the first 10 rows
     print(df_results.head(10))
 
 
     plot_predictions(y_true, y_pred, title="GRU Test: True vs Predicted")
     plot_residuals(y_true, y_pred, title="GRU Test: Residuals")
+    plot_residual_histogram(y_true, y_pred, "GRU")
+    plot_qq_plot(y_true, y_pred, "GRU")
     plot_histograms(y_true, y_pred, title="GRU Test: Value and Error Distribution")
     plot_qq(y_pred - y_true, title="GRU Test: QQ Plot of Residuals")

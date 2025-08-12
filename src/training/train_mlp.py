@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from src.utils import path_builder
 import numpy as np
 import pandas as pd
@@ -13,31 +14,26 @@ import pickle
 import os
 import json
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from src.utils import path_builder
 
-# Set device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
-# Load and split data
 X_train, y_train, X_val, y_val, X_test, y_test = load_data_time_split()
 
-# Scale feature data
 scaler_X = StandardScaler()
 X_train_scaled = scaler_X.fit_transform(X_train)
 X_val_scaled = scaler_X.transform(X_val)
 X_test_scaled = scaler_X.transform(X_test)
 
-# Scale target data - reshape to 2D array for StandardScaler
 scaler_y = StandardScaler()
 y_train_scaled = scaler_y.fit_transform(y_train.values.reshape(-1, 1)).flatten()
 y_val_scaled = scaler_y.transform(y_val.values.reshape(-1, 1)).flatten()
 y_test_scaled = scaler_y.transform(y_test.values.reshape(-1, 1)).flatten()
 
-# Create directory if it doesn't exist
 os.makedirs("..\data\mlp", exist_ok=True)
 os.makedirs("..\src\model_files", exist_ok=True)
 
-# Save scalers as pickle files (preserves all attributes)
 with open(path_builder("data\mlp", "scaler_X.pkl"), "wb") as f:
     pickle.dump(scaler_X, f)
 
@@ -71,7 +67,7 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size)
 
 # Initialize model
 input_dim = X_train_scaled.shape[1]
-model = build_mlp(input_dim, hidden_units=[128, 64], dropout_rate=0.2)
+model = build_mlp(input_dim, hidden_units=[256, 128, 64], dropout_rate=0.1)
 model = model.to(device)
 
 # Define model file paths
@@ -90,25 +86,33 @@ else:
 # Define loss function and optimizer
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
+scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, verbose=True)
 
 # Training loop with early stopping
 n_epochs = 100
 patience = 10
 best_val_loss = float('inf')
 patience_counter = 0
-history = {'train_loss': [], 'val_loss': []}
+history = {'train_loss': [], 'val_loss': [], 'train_rmse': [], 'val_rmse': []}
 
 # Training loop
 for epoch in range(n_epochs):
     # Training phase
     model.train()
     train_loss = 0.0
+    train_predictions = []
+    train_targets = []
+    
     for X_batch, y_batch in train_loader:
         X_batch, y_batch = X_batch.to(device), y_batch.to(device)
         
         # Forward pass
         y_pred = model(X_batch)
         loss = criterion(y_pred, y_batch)
+        
+        # Store predictions and targets for RMSE calculation
+        train_predictions.extend(y_pred.detach().cpu().numpy().flatten())
+        train_targets.extend(y_batch.detach().cpu().numpy().flatten())
         
         # Backward pass and optimize
         optimizer.zero_grad()
@@ -118,23 +122,54 @@ for epoch in range(n_epochs):
         train_loss += loss.item() * X_batch.size(0)
     
     train_loss /= len(train_loader.dataset)
+    
+    # Calculate training RMSE (convert back to original scale)
+    train_predictions = np.array(train_predictions)
+    train_targets = np.array(train_targets)
+    train_pred_unscaled = scaler_y.inverse_transform(train_predictions.reshape(-1, 1)).flatten()
+    train_targets_unscaled = scaler_y.inverse_transform(train_targets.reshape(-1, 1)).flatten()
+    train_rmse = np.sqrt(mean_squared_error(train_targets_unscaled, train_pred_unscaled))
+    
     history['train_loss'].append(train_loss)
+    history['train_rmse'].append(train_rmse)
     
     # Validation phase
     model.eval()
     val_loss = 0.0
+    val_predictions = []
+    val_targets = []
+    
     with torch.no_grad():
         for X_batch, y_batch in val_loader:
             X_batch, y_batch = X_batch.to(device), y_batch.to(device)
             y_pred = model(X_batch)
             val_loss += criterion(y_pred, y_batch).item() * X_batch.size(0)
+            
+            # Store predictions and targets for RMSE calculation
+            val_predictions.extend(y_pred.cpu().numpy().flatten())
+            val_targets.extend(y_batch.cpu().numpy().flatten())
     
+    # scheduler.step(val_loss)
+    current_lr = optimizer.param_groups[0]['lr']
+
     val_loss /= len(val_loader.dataset)
+    
+    # Calculate validation RMSE (convert back to original scale)
+    val_predictions = np.array(val_predictions)
+    val_targets = np.array(val_targets)
+    val_pred_unscaled = scaler_y.inverse_transform(val_predictions.reshape(-1, 1)).flatten()
+    val_targets_unscaled = scaler_y.inverse_transform(val_targets.reshape(-1, 1)).flatten()
+    val_rmse = np.sqrt(mean_squared_error(val_targets_unscaled, val_pred_unscaled))
+    
     history['val_loss'].append(val_loss)
+    history['val_rmse'].append(val_rmse)
     
     # Print progress
     if epoch % 5 == 0 or epoch == n_epochs - 1:
-        print(f"Epoch {epoch+1}/{n_epochs} - Train loss: {train_loss:.4f}, Val loss: {val_loss:.4f}")
+        print(f"Epoch {epoch+1}/{n_epochs}")
+        print(f"  Train - Loss: {train_loss:.4f}, RMSE: {train_rmse:.4f}")
+        print(f"  Val   - Loss: {val_loss:.4f}, RMSE: {val_rmse:.4f}")
+        print(f"  Learning Rate: {current_lr:.6f}")
     
     # Check for early stopping
     if val_loss < best_val_loss:
@@ -142,7 +177,7 @@ for epoch in range(n_epochs):
         patience_counter = 0
         # Save the best model
         torch.save(model.state_dict(), model_checkpoint_path)
-        print(f"Epoch {epoch+1}: Val loss improved to {val_loss:.4f}, saved model to {model_checkpoint_path}")
+        print(f"Epoch {epoch+1}: Val loss improved to {val_loss:.4f} (RMSE: {val_rmse:.4f}), saved model")
     else:
         patience_counter += 1
         if patience_counter >= patience:
@@ -159,7 +194,7 @@ print(f"Model saved to {model_final_path}")
 # Save model architecture config
 model_config = {
     'input_dim': input_dim,
-    'hidden_units': [128, 64],
+    'hidden_units': [256, 128, 64],
     'dropout_rate': 0.1
 }
 with open(model_config_path, "w") as json_file:
@@ -167,9 +202,11 @@ with open(model_config_path, "w") as json_file:
 print(f"Model config saved to {model_config_path}")
 
 # Save training history
-with open("..\models\mlp_training_history.pkl", "wb") as f:
+mlp_training_history_path = path_builder("src\\model_files", "mlp_training_history.pkl")
+os.makedirs("../models", exist_ok=True)
+with open(mlp_training_history_path, "wb") as f:
     pickle.dump(history, f)
-print("Training history saved")
+print(f"Training history saved to {mlp_training_history_path}")
 
 # Evaluate the model on test data
 model.eval()

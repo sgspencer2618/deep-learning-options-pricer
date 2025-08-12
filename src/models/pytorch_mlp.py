@@ -29,6 +29,6 @@ class MLP(nn.Module):
     def forward(self, x):
         return self.model(x)
 
-def build_mlp(input_dim, hidden_units=[128, 64], dropout_rate=0.2):
+def build_mlp(input_dim, hidden_units=[256, 128, 64], dropout_rate=0.1):
     """Factory function to create a MLP model"""
     return MLP(input_dim, hidden_units, dropout_rate)
