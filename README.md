@@ -2,7 +2,7 @@
 
 ## Summary
 
-This project explores machine learning models for options price prediction using engineered financial features. We compare XGBoost, a Multilayer Perceptron (MLP), and a Gated Recurrent Unit (GRU) model on historical market data. While MLP had the lowest average error in the full test set, this is partly due to data imbalance; the GRU actually outperformed all models on the most common price range (under $140), as shown in the low-value test sample. Our results highlight that model choice should align with data characteristics and feature structure.
+This project explores machine learning models for options price prediction using engineered financial features. We compare XGBoost, a Multilayer Perceptron (MLP), and a Gated Recurrent Unit (GRU) model on historical market data. While MLP had the lowest average error in the full test set, this is partly due to data imbalance; the GRU actually outperformed all models on the most common price range (under $140), as shown in the low-value test sample. Our results highlight that model choice should align with data characteristics and feature structure. @!@!@!@!@!@!@!@!@!@!@!@!@!@!@!@!@!@!@!@!
 
 ## Table of Contents
 1. [Summary](#summary)
@@ -20,6 +20,7 @@ This project explores machine learning models for options price prediction using
     - [Performance Highlights](#performance-highlights)
     - [Key Plots](#key-plots)
     - [Analysis](#analysis)
+    - [Comparison Plots](#comparison-plots)
     - [Overall Performance Evaluation](#overall-performance-evaluation)
 8. [Limitations & Future Work](#limitations--future-work)
     - [Limitations](#limitations)
@@ -33,7 +34,7 @@ This project explores machine learning models for options price prediction using
 Inspired by techniques from recent academic literature and proprietary research, This repository explores, implements, and evaluates different Machine Learning models to emperically price American equity Options for the $AAPL stock. Comparisons are made between different Machine Learning models, namely:
 
 1. XGBoost (Gradient-Boosted Trees) with Bayesian Hyperparameter Tuning
-2. Gated Recurrent Unit (GRU)
+2. Gated Recurrent Unit (GRU) with Bayesian Hyperparameter Tuning
 3. Multilayer Perceptron (MLP)
 
 ## Motivation & Background
@@ -48,7 +49,9 @@ For this project, I sourced recent historical options data from [Alpha Vantage](
 
 For this, I implemented a modular automated data ingestion pipeline using AWS S3 and Github Actions for scalibility and continuous integration during development.
 
-In training, a time-based train/val/test split was used to avoid leakage; never shuffling entries across time in training, testing, or validation data - with certain features (such as greeks, IV) being shifted one day to prevent data leakage.
+In training, a contract-based train/val/test split was used to avoid leakage; ensuring no contract appears in multiple splits while maintaining chronological ordering - with certain features (such as greeks, IV) being shifted one day to prevent data leakage.
+
+Time Series Windowing was also used for the GRU to leverage its advantage in temporal modeling, creating rolling windows within each contract while ensuring **contract-level non-intersection** across train/validation/test splits.
 
 ### Feature Engineering
 Here is the breakdown of features used in model training:
@@ -63,16 +66,14 @@ Here is the breakdown of features used in model training:
 8. 'theta'
 9. 'vega'
 10. 'rho'
-11. 'log_moneyness'
-12. 'time_to_maturity'
-13. 'log_moneyness_norm'
+11. 'time_to_maturity'
+12. 'log_moneyness_norm'
 
 #### Greek product Features
 I also feature-engineered several 'compound' features, calculated as simple products of greeks, namely:
-1. 'delta_x_iv',
-2. 'vega_x_ttm',
-3. 'gamma_x_logm',
-4. 'theta_x_intrinsic',
+1. 'vega_x_ttm',
+2. 'gamma_x_logm',
+3. 'theta_x_intrinsic',
 
 ## Repository Structure
 
@@ -120,33 +121,62 @@ Optuna was used for GRU hyperparameter tuning. Feature was scaling handled using
 
 ### Models Compared
 - **XGBoost** Regressor as a **Baseline**
+    - Optuna Hyperparam. Tuning, 20 trials
+    - MSE Loss
+    - Histogram tree method
 - **GRU (Gated Recurrent Unit)** neural network with attention
+    - 30 epochs, early stopping
+    - patience = 10
+    - Huber Loss
 - **MLP (Multilayer Perceptron)**
+    - 100 epochs, early stopping
+    - patience = 10
+    - MSE Loss
 - all trained and evaluated on identical engineered theoretical feature set (Greeks, moneyness, TTM, etc.)
 
-### Performance Highlights
 
 ### Metrics
-Data was split (70:15:25) train-val-test, and models were trained and evaluated on the identical training, validation, and testing data to ensure comparable results.
+Data was split ~(70:15:25) train-val-test, and models were trained and evaluated on the identical training, validation, and testing data to ensure comparable results.
 
 #### XGBoost Metrics
-- RMSE: 11.65148
-- MAE: 7.56345
-- MedAE: 3.79191
-- R2: 0.90826
+- RMSE: 10.35207
+- MAE: 4.16048
+- MedAE: 1.20147
+- R2: 0.94936
 
 #### GRU Metrics
-The GRU was trained on rolling windows taken from the same training data, and tested on the same segmented data set, process into rolling windows. the model performed as follows:
-- RMSE: 3.01269
-- MAE: 2.57142
-- MedAE: 0.51145
-- R2: 0.96596
+The GRU was trained on rolling windows taken from the same training data, and tested on the same segmented data set, processed into rolling windows. The GRU model performed as follows:
+
+- RMSE: 3.47752
+- MAE: 6.30047
+- MedAE: 2.01741
+- R2: 0.93093
+
+**Note**: Due to different data structures (windowed vs. flat), RMSE comparisons between GRU and other models should be interpreted carefully. The GRU operates on sequence windows while XGBoost/MLP use individual observations.
 
 #### MLP Metrics
-- RMSE: 10.81831
-- MAE: 8.26400
-- MedAE: 7.04856
-- R2: 0.92091
+- RMSE: 10.80107
+- MAE: 5.41497
+- MedAE: 1.72522
+- R2: 0.94488
+
+### Metrics on Test Data
+Below are statistics from each model's performance on the test data:
+
+Error Statistics:
+- Average XGBoost abs error: 68.0518
+- Average GRU abs error: 63.5020
+- Average MLP abs error: 57.2136
+- XGB better prediction count: 190
+- GRU better prediction count: 318
+- Tie count: 0
+
+Percentage Error Statistics:
+- Average XGBoost percentage error: 33.19%
+- Average GRU percentage error: 31.43%
+- Average MLP percentage error: 28.03%
+
+The breakdown of these metrics is discussed further in the [Analysis](#analysis) section.
 
 ### Key plots
 
@@ -155,94 +185,107 @@ The GRU was trained on rolling windows taken from the same training data, and te
 |:-----------------------------------------------:|:-----------------------------------------------------:|
 | True vs Predicted Price                         | XGBoost Feature Importance                            |
 
+XGBoost Residual Distribution
+![XGB Residual Distribution](assets/XGB_resid.png)
+
 #### GRU
-| ![True vs Predicted Price](assets/gru_tvp.png) | ![GRU Norm QQ Plot](assets/gru_qq.png) |
+| ![True vs Predicted Price](assets/gru_tvp.png) | ![GRU Residual Distribution](assets/gru_resid.png) |
 |:--------------:|:--------------:|
-|  True vs Predicted Price     | GRU QQ Plot of Residuals (against normal dist.)      |
+|  True vs Predicted Price     | GRU Residual Distribution      |
 
-Price Data Distribution:
-
-![Data Distribution](assets/gru_ct.png)
 
 #### MLP
-![MLP True vs. Predicted](assets/mlp_tvp.png) | ![MLP Feature Importance](assets/mlp_resid.png) |
+![MLP True vs. Predicted](assets/mlp_tvp.png) | ![MLP Residual Distribution](assets/mlp_resid.png) |
 |:-----------------------------------------------:|:-----------------------------------------------------:|
-| True vs Predicted Price                         | MLP Feature Importance                            |
+| True vs Predicted Price                         | MLP Residual Distribution                            |
 
 ## Analysis
 
-#### Performance on Test Dataset
+### Performance on Test Dataset
 Below are tables comparing the predictions of the GRU models with a test data sample, with the $\Delta$-values representing the difference between the model prediction and the true price. Since the GRU was trained and tested on rolling windows, the metrics below are taken **at random** from only **matching rows** across the test data (non-windowed for MLP, XGB and windowed for GRU). **This may skew analyses for GRU performance against the other models**.
 
-#### Absolute Error
+### Absolute Error
 
-| True Price ($) | XBoost ($) | GRU ($)   | MLP ($)   | $\Delta$ XGBoost (Abs)  | $\Delta$ GRU (Abs) | $\Delta$ MLP (Abs) |
-|----------------|------------|-----------|-----------|-------------------------|--------------------|--------------------|
-| 122.93         | 121.92339  | 119.49114 | 122.65782 | 1.00661                 | 3.43887            | 0.27218            |
-| 137.23         | 141.28304  | 133.08649 | 140.21288 | 4.05304                 | 4.14351            | 2.98288            |
-| 166.73         | 162.74054  | 163.80864 | 153.64980 | 3.98946                 | 2.92136            | 13.08020           |
-| 146.23         | 126.39964  | 136.40060 | 141.14595 | 19.83036                | 9.82939            | 5.08405            |
-| 209.47         | 167.93335  | 132.48540 | 163.00860 | 41.53665                | 76.98460           | 46.46139           |
-| 225.57         | 148.08543  | 134.25928 | 218.50418 | 77.48457                | 91.31073           | 7.06582            |
-
+| True Price ($) | XBoost ($) | GRU ($) | MLP ($) | $\Delta$ XGBoost (Abs) | $\Delta$ GRU (Abs) | $\Delta$ MLP (Abs) |
+|----------------|------------|---------|---------|-----------------|-------------|-------------|
+| 146.52         | 145.30     | 144.48  | 146.57  | 1.22            | 2.04        | 0.05        |
+| 188.52         | 163.48     | 144.60  | 164.73  | 25.04           | 43.92       | 23.79       |
+| 186.27         | 114.69     | 134.57  | 144.58  | 71.58           | 51.70       | 41.69       |
+| 189.45         | 114.81     | 134.80  | 145.07  | 74.64           | 54.65       | 44.38       |
+| 155.78         | 140.47     | 144.52  | 144.28  | 15.31           | 11.26       | 11.50       |
 
 Here are the percentage errors represented similarly:
 
-#### Percentage Error
-| True Price ($) | XBoost ($) | GRU ($)   | MLP ($)   | $\Delta$ XGBoost (%) | $\Delta$ GRU (%) | $\Delta$ MLP (%) |
-|----------------|------------|-----------|-----------|----------------------|------------------|------------------|
-| 122.93         | 121.92339  | 119.49114 | 122.65782 | 0.82%                | 2.80%            | 0.22%            |
-| 137.23         | 141.28304  | 133.08649 | 140.21288 | 2.95%                | 3.02%            | 2.17%            |
-| 166.73         | 162.74054  | 163.80864 | 153.64980 | 2.39%                | 1.75%            | 7.85%            |
-| 146.23         | 126.39964  | 136.40060 | 141.14595 | 13.56%               | 6.72%            | 3.48%            |
-| 209.47         | 167.93335  | 132.48540 | 163.00860 | 19.83%               | 36.75%           | 22.18%           |
-| 225.57         | 148.08543  | 134.25928 | 218.50418 | 34.35%               | 40.48%           | 3.13%            |
+### Percentage Error
+
+| True Price ($) | XBoost ($) | GRU ($) | MLP ($) | $\Delta$ XGBoost (%) | $\Delta$ GRU (%) | $\Delta$ MLP (%) |
+|----------------|------------|---------|---------|---------------|-----------|-----------|
+| 146.52         | 145.30     | 144.48  | 146.57  | 0.83%         | 1.39%     | 0.03%     |
+| 188.52         | 163.48     | 144.60  | 164.73  | 13.28%        | 23.30%    | 12.62%    |
+| 186.27         | 114.69     | 134.57  | 144.58  | 38.43%        | 27.76%    | 22.38%    |
+| 189.45         | 114.81     | 134.80  | 145.07  | 39.40%        | 28.85%    | 23.43%    |
+| 155.78         | 140.47     | 144.52  | 144.28  | 9.83%         | 7.23%     | 7.38%     |
+
 
 Here are the average percentage errors for each model **from this test sample**:
 
-| Average $\Delta$ XGBoost (%) | Average $\Delta$ GRU (%) | Average $\Delta$ MLP (%)|
-|------------------------------|--------------------------|-------------------------|
-| 12.317                       | 15.253                   | **6.505**                   |
+| Average $\Delta$ XGBoost (%) | Average $\Delta$ GRU (%) | Average $\Delta$ MLP (%) |
+|------------------------------|--------------------------|--------------------------|
+| 20.754                       | 17.706                   | **13.568**               |
 
-#### Overall Average Error Metrics
+### Overall Average Error Metrics
 
 And here are the **overall** approximate average percentage errors for each model **from only the matching rows of the test data**:
 
 | Average $\Delta$ XGBoost (%) | Average $\Delta$ GRU (%) | Average $\Delta$ MLP (%)|
 |------------------------------|--------------------------|-------------------------|
-| 15.56                        | 28.23                    | **13.11**                   |
+| 33.19                        | 31.43                    | **28.03**                   |
 
 ### Performance on Undersampled/Low-Mid-Value Contracts
-#### Addressing Test Data Imbalance
-The metrics above show the more complex GRU model's underperformance in relation to the MLP and XGB models.
+#### Addressing Data Imbalance
 
-However, analyzing the GRU's metrics and test data show that the GRU **hugely outperforms** the MLP and XGB in pricing **mid-to-lower-value contracts (value < 140)** and that the dataset of matching rows from which the above contracts were taken is **skewed such that only ~2% of the contracts are of value < 140**. Sampling this 2% of the test data, we can see that the **GRU outperforms the other two models** in almost all cases.
+The training and testing datasest exhibits significant price imbalance, with the majority of options contracts priced below $150 and relatively few high-value contracts above $200. This imbalance creates several analytical challenges that particularly affect the GRU model's performance evaluation.
 
-| True Price ($) | XBoost ($) | GRU ($)   | MLP ($)   | $\Delta$ XGBoost (%) | $\Delta$ GRU (%) | $\Delta$ MLP (%) |
-|----------------|------------|-----------|-----------|----------------------|------------------|------------------|
-| 62.82          | 61.43354   | 59.48655  | 61.65081  | 2.21%                | 5.31%            | 1.86%            |
-| 126.52         | 124.18036  | 127.01633 | 137.10991 | 1.85%                | 0.39%            | 8.37%            |
-| 62.68          | 70.34517   | 63.12310  | 80.28888  | 12.23%               | 0.71%            | 28.09%           |
-| 127.02         | 105.78838  | 128.68573 | 132.18924 | 16.72%               | 1.31%            | 4.07%            |
-| 126.73         | 100.01202  | 126.66743 | 128.86774 | 21.08%               | 0.05%            | 1.69%            |
-| 137.97         | 115.07793  | 133.05862 | 136.33330 | 16.59%               | 3.56%            | 1.19%            |
+**Effect on GRU Performance Characteristics**
 
-Here are the average percentage errors for each model **from the undersampled rows**:
+The GRU model demonstrates clear heteroscedastic behavior in its predictions, as evidenced in the scatter plot above.
 
-| Average $\Delta$ XGBoost (%) | Average $\Delta$ GRU (%) | Average $\Delta$ MLP (%) |
-|------------------------------|--------------------------|--------------------------|
-| 7.82                         | **2.40**                     | 6.10                     |
+1. **Prediction Convergence**: For options priced above ~$180, the GRU predictions plateau around $144-145, regardless of true price. This suggests the model has learned to predict toward the mean of its training distribution when encountering higher-value contracts.
 
+2. **Variance Pattern**: The model shows higher prediction variance in the $50-$150 range (where training data is abundant) but exhibits systematic underestimation bias for high-value contracts due to insufficient exposure during training.
+
+3. **Data Scarcity Impact**: The scarcity of high-priced training examples (~$200+) forces the GRU to extrapolate beyond its learned parameter space, resulting in conservative predictions that cluster around familiar price ranges.
+
+
+**Effect on XGB Performance Characteristics**
+
+1. High-Value Contract Struggles: For contracts above $180, XGBoost shows increased prediction variance and occasional significant underestimation, though less systematic than the GRU's plateau effect.
+
+2. Low-Value Stability: The model performs consistently well on lower-priced options (<$100), benefiting from abundant training examples in this range.
+
+**Effect on MLP Performance Characteristics**
+
+1. Smooth Prediction Surface: The MLP's scatter plot shows the smoothest relationship with true values, indicating good generalization across the price spectrum.
+
+2. Moderate High-Value Performance: Unlike the GRU's sharp plateau, the MLP shows gradual degradation in accuracy for high-priced contracts, suggesting better extrapolation capabilities.
+
+## Comparison Plots
+Below are plots comparing the performance of the three models:
+
+![Model Comparison Overview](assets/model_comparison_overview.png) | ![Training Performance Comparison](assets/training_performance_comparison.png) |
+|:-----------------------------------------------:|:-----------------------------------------------------:|
+| Model Comparison Overview                         | Training Performance Comparison (MLP vs GRU)                            |
+
+#### Residual Comparison and QQ Plots against $N(0,1)$
+
+![Residual Comparison Plot](assets/residual_comparison.png)
 
 ## Overall Performance Evaluation
 
 The performance metrics above highlight each model's characteristics influence options price prediction accuracy.
 
-### Best Performance on Test Sample: MLP
+### Best Performance: MLP
 Overall, the MLP (fully-connected neural network) had the lowest average error across the test sample, benefiting from its ability to model the complex nonlinear relationships present in options data, performing particularly well on mid-priced contracts. However, the model struggles with extreme values due to data imbalance. The flexibility of the MLP along with its respectable performance distinguishes as the best model option out of the three models compared we have.
-
-### Best Overall Performance: GRU
-In my analysis, I believe that due to the data imbalance in the test data (addressed in the above section), the GRU's performance was misrepresented in the test sample. Also, with the skewness of the training dataset (right skewed, many more training examples for lower prices contracts), I feel that the GRU's strong performance in the mid-low priced options puts it above the other two models, with the unbalanced data being its limiting factor.
 
 ### Takeaways
 - **XGBoost remains competitive**, offering strong baseline results, however struggling on outliers and extreme price values.
