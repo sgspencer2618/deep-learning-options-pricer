@@ -35,7 +35,7 @@ Results emphasize that model selection should consider both data distribution ch
 
 ## Project Description
 
-Inspired by techniques from recent academic literature and proprietary research, This repository explores, implements, and evaluates different Machine Learning models to emperically price American equity Options for the $AAPL stock. Comparisons are made between different Machine Learning models, namely:
+Inspired by techniques from recent academic literature and proprietary research, This repository explores, implements, and evaluates different Machine Learning models to empirically price American equity Options for the $AAPL stock. Comparisons are made between different Machine Learning models, namely:
 
 1. XGBoost (Gradient-Boosted Trees) with Bayesian Hyperparameter Tuning
 2. Gated Recurrent Unit (GRU) with Bayesian Hyperparameter Tuning
@@ -51,7 +51,7 @@ This repo is based on recent research (See [[1]][ref1], [[2]][ref2]) and looks t
 ## Data Description
 For this project, I sourced recent historical options data from [Alpha Vantage](https://www.alphavantage.co/)'s Options Data API, with columns for expiration, strike, greeks, as well as integrating daily OHLC to try to capture market regime behaviour.
 
-For this, I implemented a modular automated data ingestion pipeline using AWS S3 and Github Actions for scalibility and continuous integration during development.
+For this, I implemented a modular automated data ingestion pipeline using AWS S3 and Github Actions for scalability and continuous integration during development.
 
 In training, a contract-based train/val/test split was used to avoid leakage; ensuring no contract appears in multiple splits while maintaining chronological ordering - with certain features (such as greeks, IV) being shifted one day to prevent data leakage.
 
@@ -247,7 +247,7 @@ And here are the **overall** approximate average percentage errors for each mode
 ### Performance on Undersampled/Low-Mid-Value Contracts
 #### Addressing Data Imbalance
 
-The training and testing datasest exhibits significant price imbalance, with the majority of options contracts priced below $150 and relatively few high-value contracts above $200. This imbalance creates several analytical challenges that particularly affect the GRU model's performance evaluation.
+The training and testing dataset exhibits significant price imbalance, with the majority of options contracts priced below $150 and relatively few high-value contracts above $200. This imbalance creates several analytical challenges that particularly affect the GRU model's performance evaluation.
 
 **Effect on GRU Performance Characteristics**
 
