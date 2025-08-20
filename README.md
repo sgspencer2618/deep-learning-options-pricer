@@ -1,9 +1,5 @@
 # Deep Learning for US Options Pricing ($AAPL Equity Options)
 
-# <p align="center">
-#   <img src="https://github.com/user-attachments/assets/5ef3adce-335f-445c-bc03-2d84f804db39" width="500"/>
-# </p>
-
 ## Summary
 
 This project explores machine learning models for options price prediction. We compare XGBoost (gradient boosting), a Multilayer Perceptron (MLP), and a Gated Recurrent Unit (GRU) with time series windowing on historical $AAPL options data. The MLP achieved the lowest overall test error (28.03% average), demonstrating superior generalization across price ranges and smoother prediction surfaces.
