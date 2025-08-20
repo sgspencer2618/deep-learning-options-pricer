@@ -1,8 +1,8 @@
 # Deep Learning for US Options Pricing ($AAPL Equity Options)
 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/5ef3adce-335f-445c-bc03-2d84f804db39" width="500"/>
-</p>
+# <p align="center">
+#   <img src="https://github.com/user-attachments/assets/5ef3adce-335f-445c-bc03-2d84f804db39" width="500"/>
+# </p>
 
 ## Summary
 
