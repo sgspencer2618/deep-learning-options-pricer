@@ -8,7 +8,7 @@
 
 This project explores machine learning models for options price prediction. We compare XGBoost (gradient boosting), a Multilayer Perceptron (MLP), and a Gated Recurrent Unit (GRU) with time series windowing on historical $AAPL options data. The MLP achieved the lowest overall test error (28.03% average), demonstrating superior generalization across price ranges and smoother prediction surfaces.
 
-However, significant data imbalance affects all models: while the GRU shows competitive performance on abundant mid-range contracts ($50-$150), it exhibits systematic prediction plateaus around $144-145 for high-value options above $180, highlighting the challenges of financial ML with heteroscedastic data. XGBoost provides reliable baseline performance but struggles with extreme values.
+However, significant data imbalance affects all models: while the GRU shows competitive performance on abundant mid-range contracts ($50-$150), it exhibits systematic prediction plateaus around $144-145 for high-value options above $180, highlighting the challenges of financial ML (using direct learning) with heteroscedastic data. XGBoost provides reliable baseline performance but struggles with extreme values.
 
 Results emphasize that model selection should consider both data distribution characteristics and architectural advantages, with simpler models potentially outperforming complex architectures when properly engineered for the underlying data structure.
 
